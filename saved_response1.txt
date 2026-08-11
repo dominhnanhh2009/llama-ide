@@ -1,0 +1,37 @@
+{
+    "choices": [
+        {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "Chào hỏi! Mình luôn sẵn sàng hỗ trợ bạn. Bạn có thể chia sẻ gì? 😊",
+                "reasoning_content": "Okay, the user greeted me with \"chào tạm biệt\", which is Vietnamese. Let me translate this. \"Chào\" means hello, and \"tạm biệt\" is goodbye. So it's \"Hello, goodbye\". I should respond in Vietnamese as well.\n\nWait, the user might expect a greeting back. So I need to reply in Vietnamese. Let me make sure the response is friendly. Maybe offer assistance. Since it's a greeting, I can say something like \"Chào hỏi bạn. Mình sẽ giúp gì?\". But maybe they want to continue the conversation. Let me check the context. The user just said \"chào tạm biệt\", so maybe they want to say hello again. So respond with \"Chào hỏi! Mình có thể giúp gì?\" or similar. Wait, but the user's message is just the greeting. Maybe they want to say how to greet back. So I'll respond warmly. Let me keep the tone friendly. Maybe add some options like offering help. But since it's a greeting, a short response with a friendly message is better. Let me think. The user says \"chào tạm biệt\", which is \"Hello, bye\". So in response, say \"Chào hỏi! Có gì bạn cần giúp?\" But maybe add a bit more warmth. \"Chào hỏi! Mình luôn sẵn sàng hỗ trợ bạn. Bạn muốn chia sẻ gì?\" Or \"Chào hỏi! Mình luôn sẵn sàng. Bạn có thể trò chuyện thêm.\" Hmm. Let me make it natural. \"Chào hỏi! Mình luôn sẵn sàng hỗ trợ. Bạn có thể chia sẻ gì?\" But maybe too long. Let me adjust. \"Chào hỏi! Mình có thể giúp gì? Bạn cần hỗ trợ gì?\" No, wait. \"Chào hỏi! Mình luôn sẵn sàng. Bạn có thể trò chuyện thêm.\" That's good. Let me write the response.\n"
+            }
+        }
+    ],
+    "created": 1786459022,
+    "model": "qwen3.5-0.8b",
+    "system_fingerprint": "b10107-c0bc8591e",
+    "object": "chat.completion",
+    "usage": {
+        "completion_tokens": 409,
+        "prompt_tokens": 15,
+        "total_tokens": 424,
+        "prompt_tokens_details": {
+            "cached_tokens": 0
+        }
+    },
+    "id": "chatcmpl-cIETFGwNfC95oX0iz2rHStVOV4Ot3BA8",
+    "timings": {
+        "cache_n": 0,
+        "prompt_n": 15,
+        "prompt_ms": 550.705,
+        "prompt_per_token_ms": 36.71366666666667,
+        "prompt_per_second": 27.237813348344392,
+        "predicted_n": 409,
+        "predicted_ms": 9990.632,
+        "predicted_per_token_ms": 24.426973105134472,
+        "predicted_per_second": 40.93835104726107
+    }
+}

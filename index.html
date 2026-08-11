@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Llama IDE</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+  <header class="menubar">
+    <div class="brand"><span class="brand-mark">L</span><span>LLAMA IDE</span></div>
+    <div class="menus">
+      <div class="menu-wrap">
+        <button class="menu-button" data-menu="file-menu">File</button>
+        <div class="menu" id="file-menu">
+          <button data-action="new">New request <kbd>Ctrl N</kbd></button>
+          <button data-action="open">Open… <kbd>Ctrl O</kbd></button>
+          <div class="menu-separator"></div>
+          <button data-action="save">Save <kbd>Ctrl S</kbd></button>
+          <button data-action="save-as">Save as…</button>
+        </div>
+      </div>
+      <button class="menu-button" data-action="settings">Settings</button>
+    </div>
+    <div class="connection"><span class="status-dot" id="server-dot"></span><span id="server-label">Server not checked</span></div>
+  </header>
+
+  <main class="workspace">
+    <section class="document-panel">
+      <div class="document-head">
+        <div><span class="eyebrow">REQUEST DOCUMENT</span><h1 id="file-name">untitled.json</h1></div>
+        <div class="document-actions">
+          <button class="secondary" id="format-button">Format JSON</button>
+          <button class="primary" id="run-button">Run request</button>
+        </div>
+      </div>
+      <nav class="view-tabs" aria-label="Document views">
+        <button class="active" data-view="rendered">Rendered</button>
+        <button data-view="raw">Raw request</button>
+        <button data-view="prompt">Raw prompt</button>
+      </nav>
+      <div class="notice hidden" id="notice"></div>
+      <div class="view active" id="rendered-view"><div id="rendered-editor"></div></div>
+      <div class="view" id="raw-view">
+        <div class="editor-toolbar"><span>OPENAI API REQUEST · JSON</span><span id="json-status">Valid JSON</span></div>
+        <textarea id="raw-editor" class="code-editor" spellcheck="false" aria-label="Raw JSON request"></textarea>
+      </div>
+      <div class="view" id="prompt-view">
+        <div class="editor-toolbar"><span>APPLY-TEMPLATE RESPONSE · READ ONLY</span><button class="text-button" id="refresh-prompt">Refresh</button></div>
+        <textarea id="prompt-editor" class="code-editor" readonly spellcheck="false" placeholder="Choose Refresh to call /apply-template. The response will appear here without transformation."></textarea>
+      </div>
+    </section>
+
+    <aside class="side-column">
+      <section class="side-panel model-panel">
+        <div class="panel-head"><div><span class="eyebrow">SERVER</span><h2>Model properties</h2></div><button class="icon-button" id="refresh-model" title="Refresh">↻</button></div>
+        <div class="kv-list" id="model-properties"><p class="empty-state">Connect to a llama-server to inspect its properties.</p></div>
+      </section>
+      <section class="side-panel slots-panel">
+        <div class="panel-head"><div><span class="eyebrow">RUNTIME</span><h2>Slots</h2></div><button class="icon-button" id="refresh-slots" title="Refresh">↻</button></div>
+        <div id="slots-status"><p class="empty-state">No slot data loaded.</p></div>
+      </section>
+    </aside>
+  </main>
+
+  <input id="file-input" type="file" accept=".json,.txt,application/json,text/plain" hidden>
+
+  <dialog id="settings-dialog">
+    <form method="dialog" id="settings-form">
+      <div class="dialog-head"><div><span class="eyebrow">LOCAL SETTINGS</span><h2>Connections</h2></div><button class="icon-button" type="button" data-close-settings aria-label="Close">×</button></div>
+      <label>llama-server base URL<input id="base-url" type="url" placeholder="http://localhost:3333" autocomplete="off"></label>
+      <p class="field-help">Stored in this browser only. It is never inserted into or removed from the request document.</p>
+      <label>MCP server<input id="mcp-url" type="url" placeholder="Not used in this MVP" autocomplete="off" disabled></label>
+      <label class="toggle-row"><span><strong>Tools</strong><small>MCP tool discovery is planned for a later version.</small></span><input id="tools-toggle" type="checkbox" disabled></label>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-settings>Cancel</button><button class="primary" type="submit">Save settings</button></div>
+    </form>
+  </dialog>
+
+  <script src="js/state.js"></script>
+  <script src="js/json.js"></script>
+  <script src="js/rendered.js"></script>
+  <script src="js/server.js"></script>
+  <script src="js/files.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
