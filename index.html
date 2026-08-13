@@ -33,9 +33,12 @@
     <section class="document-panel">
       <div class="document-head">
         <div><span class="eyebrow">REQUEST DOCUMENT</span><h1 id="file-name">untitled.json</h1></div>
-        <div class="document-actions">
-          <button class="secondary" id="format-button">Format JSON</button>
-          <button class="primary" id="run-button">Run request</button>
+        <div class="document-actions" aria-label="Request actions">
+          <button class="action-button secondary" id="format-button" title="Format JSON" aria-label="Format JSON"><span class="action-icon">{ }</span><span class="action-label">Format JSON</span></button>
+          <button class="action-button secondary" id="connect-server-button" title="Connect llama-server" aria-label="Connect llama-server"><span class="action-icon">⛓</span><span class="action-label">Connect llama-server</span></button>
+          <button class="action-button secondary" id="use-mcp-button" title="Use tools from MCP" aria-label="Use tools from MCP"><span class="action-icon">⌘</span><span class="action-label">Use tools from MCP</span></button>
+          <button class="action-button secondary active" id="markdown-button" title="Disable Markdown rendering" aria-label="Disable Markdown rendering" aria-pressed="true"><span class="action-icon">MD</span><span class="action-label">Markdown on</span></button>
+          <button class="action-button primary" id="run-button" title="Run request" aria-label="Run request"><span class="action-icon">▶</span><span class="action-label">Run request</span></button>
         </div>
       </div>
       <nav class="view-tabs" aria-label="Document views">
@@ -47,11 +50,11 @@
       <div class="view active" id="rendered-view"><div id="rendered-editor"></div></div>
       <div class="view" id="raw-view">
         <div class="editor-toolbar"><span>OPENAI API REQUEST · JSON</span><span id="json-status">Valid JSON</span></div>
-        <textarea id="raw-editor" class="code-editor" spellcheck="false" aria-label="Raw JSON request"></textarea>
+        <div class="raw-json-editor"><pre id="raw-highlight" class="raw-json-highlight" aria-hidden="true"></pre><textarea id="raw-editor" class="code-editor raw-json-input" spellcheck="false" aria-label="Raw JSON request"></textarea></div>
       </div>
       <div class="view" id="prompt-view">
-        <div class="editor-toolbar"><span>APPLY-TEMPLATE RESPONSE · READ ONLY</span><button class="text-button" id="refresh-prompt">Refresh</button></div>
-        <textarea id="prompt-editor" class="code-editor" readonly spellcheck="false" placeholder="Choose Refresh to call /apply-template. The response will appear here without transformation."></textarea>
+        <div class="editor-toolbar"><span>APPLIED CHAT TEMPLATE · RAW MODEL PROMPT · READ ONLY</span><button class="text-button" id="refresh-prompt">Refresh</button></div>
+        <textarea id="prompt-editor" class="code-editor" readonly spellcheck="false" placeholder="Choose Refresh to apply the model's chat template and inspect the exact prompt string."></textarea>
       </div>
       <section class="response-panel collapsed" id="response-panel">
         <button class="response-panel-head" id="response-toggle" type="button" aria-expanded="false">
