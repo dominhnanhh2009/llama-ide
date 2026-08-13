@@ -483,6 +483,23 @@
     input.addEventListener("change", function () { try { IDE.state.document[key] = IDE.Json.parseScalarText(input.value, value); card.classList.remove("invalid"); commit(); if (key === "model") { IDE.Server.loadModel(); IDE.Server.loadSlots(); } } catch (error) { card.classList.add("invalid"); IDE.App.notice(key + ": " + error.message); } });
     card.append(input); return card;
   }
+  function renderRequestFields(host, data) {
+    host.replaceChildren();
+    var otherKeys = Object.keys(data).filter(function (key) { return key !== "messages" && key !== "tools"; });
+    var head = el("div", "side-fields-head"); head.append(el("span", "eyebrow", "REQUEST"), el("span", "count", otherKeys.length + " FIELDS")); host.append(head);
+    var fields = el("div", "request-fields");
+    function appendRow(className, keys) {
+      var present = keys.filter(function (key) { return otherKeys.indexOf(key) !== -1; });
+      if (!present.length) return;
+      var row = el("div", "request-field-row " + className);
+      present.forEach(function (key) { row.append(topField(key, data[key])); }); fields.append(row);
+    }
+    appendRow("model-sampling-row", ["model", "temperature", "repeat_penalty"]);
+    appendRow("reasoning-row", ["reasoning_control", "chat_template_kwargs", "thinking_budget_tokens"]);
+    var grouped = ["model", "temperature", "repeat_penalty", "reasoning_control", "chat_template_kwargs", "thinking_budget_tokens", "max_tokens"];
+    otherKeys.filter(function (key) { return grouped.indexOf(key) === -1; }).forEach(function (key) { fields.append(topField(key, data[key])); });
+    appendRow("max-tokens-row", ["max_tokens"]); host.append(fields);
+  }
   IDE.Rendered = {
     render: function () {
       var root = document.getElementById("rendered-editor"); root.replaceChildren();
@@ -497,20 +514,7 @@
           root.append(button("+ Add message", "secondary", function () { messages.push({ role: "user", content: "" }); commit(); IDE.Rendered.render(); }));
         } else root.append(topField("messages", data.messages));
       }
-      var otherKeys = Object.keys(data).filter(function (key) { return key !== "messages" && key !== "tools"; });
-      var otherTitle = el("div", "section-title"); otherTitle.style.marginTop = "28px"; otherTitle.append(el("h2", "", "Request fields"), el("span", "count", otherKeys.length + " FIELDS")); root.append(otherTitle);
-      var fields = el("div", "request-fields");
-      function appendRow(className, keys) {
-        var present = keys.filter(function (key) { return otherKeys.indexOf(key) !== -1; });
-        if (!present.length) return;
-        var row = el("div", "request-field-row " + className);
-        present.forEach(function (key) { row.append(topField(key, data[key])); }); fields.append(row);
-      }
-      appendRow("model-sampling-row", ["model", "temperature", "repeat_penalty"]);
-      appendRow("reasoning-row", ["reasoning_control", "chat_template_kwargs", "thinking_budget_tokens"]);
-      var grouped = ["model", "temperature", "repeat_penalty", "reasoning_control", "chat_template_kwargs", "thinking_budget_tokens", "max_tokens"];
-      otherKeys.filter(function (key) { return grouped.indexOf(key) === -1; }).forEach(function (key) { fields.append(topField(key, data[key])); });
-      appendRow("max-tokens-row", ["max_tokens"]); root.append(fields);
+      var fieldsHost = document.getElementById("request-fields-host"); if (fieldsHost) renderRequestFields(fieldsHost, data);
       if (!document.getElementById("role-suggestions")) {
         var list = el("datalist"); list.id = "role-suggestions"; ["system", "tool", "user", "assistant"].forEach(function (v) { var o = el("option"); o.value = v; list.append(o); }); document.body.append(list);
       }

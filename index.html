@@ -65,9 +65,16 @@
     </section>
 
     <aside class="side-column">
-      <section class="side-panel model-panel">
+      <section class="side-panel inspector-panel">
+        <nav class="side-tabs" aria-label="Request and model details">
+          <button class="active" data-side-view="fields">Request fields</button>
+          <button data-side-view="model">Model properties</button>
+        </nav>
+        <div class="side-view active" id="fields-side-view"><div id="request-fields-host"></div></div>
+        <div class="side-view" id="model-side-view">
         <div class="panel-head"><div><span class="eyebrow">SERVER</span><h2>Model properties</h2></div><button class="icon-button" id="refresh-model" title="Refresh">↻</button></div>
         <div class="kv-list" id="model-properties"><p class="empty-state">Connect to a llama-server to inspect its properties.</p></div>
+        </div>
       </section>
       <section class="side-panel slots-panel">
         <div class="panel-head"><div><span class="eyebrow">RUNTIME</span><h2>Slots</h2></div><button class="icon-button" id="refresh-slots" title="Refresh">↻</button></div>

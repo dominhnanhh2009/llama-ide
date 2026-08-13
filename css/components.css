@@ -163,6 +163,16 @@
 .reasoning-row { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
 .max-tokens-row { grid-template-columns: minmax(180px, 1fr); }
 @media (max-width: 760px) { .model-sampling-row, .reasoning-row { grid-template-columns: 1fr; } }
+#request-fields-host { padding: 7px; }
+.side-fields-head { height: 29px; display: flex; align-items: center; justify-content: space-between; padding: 0 3px 6px; }
+#request-fields-host .request-field-row { gap: 4px; }
+#request-fields-host .field-card { margin-bottom: 4px; padding: 6px; }
+#request-fields-host .field-label { min-width: 0; margin-bottom: 3px; overflow: hidden; font-size: 7px; letter-spacing: .025em; text-overflow: ellipsis; white-space: nowrap; }
+#request-fields-host .field-input { min-width: 0; height: 25px; padding: 3px 5px; font-size: 9px; }
+#request-fields-host .model-sampling-row { grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(0, .8fr)); }
+#request-fields-host .reasoning-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#request-fields-host .max-tokens-row { grid-template-columns: minmax(0, 105px); }
+#request-fields-host .json-editor { min-height: 64px; }
 .empty-state { padding: 18px 15px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .kv-list { font: 11px/1.45 ui-monospace, monospace; }
 .kv-row { display: grid; grid-template-columns: minmax(90px, .8fr) minmax(120px, 1.2fr); border-bottom: 1px solid var(--line-soft); }

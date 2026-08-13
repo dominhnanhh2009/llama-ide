@@ -22,7 +22,12 @@
 .response-panel.collapsed .response-panel-body { display: none; }
 .side-column { display: grid; grid-template-rows: minmax(0, 3fr) minmax(180px, 1fr); min-height: 0; }
 .side-panel { min-height: 0; overflow: auto; background: var(--panel); }
-.model-panel { border-bottom: 1px solid var(--line); }
+.inspector-panel { border-bottom: 1px solid var(--line); }
 .panel-head { position: sticky; top: 0; z-index: 2; min-height: 62px; padding: 14px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: var(--panel); }
+.side-tabs { position: sticky; top: 0; z-index: 4; height: 38px; display: flex; border-bottom: 1px solid var(--line); background: #111413; }
+.side-tabs button { flex: 1; min-width: 0; border: 0; border-bottom: 2px solid transparent; padding: 0 5px; background: transparent; color: var(--muted); font: 600 9px ui-monospace, monospace; letter-spacing: .04em; text-transform: uppercase; }
+.side-tabs button.active { color: var(--green); border-bottom-color: var(--green); }
+.side-view { display: none; }
+.side-view.active { display: block; }
 @media (max-width: 900px) { .workspace { grid-template-columns: minmax(500px, 1fr) 280px; } }
 @media (max-width: 900px) { .response-panel { right: 280px; } }
