@@ -33,17 +33,26 @@
       list.append(option);
     });
   }
-  async function modelProperties() {
+  async function loadCatalog(selectFirst) {
     var catalog = await request("/v1/models");
-    updateModelSuggestions(catalog && Array.isArray(catalog.data) ? catalog.data : []);
+    var models = catalog && Array.isArray(catalog.data) ? catalog.data.filter(function (model) { return model && typeof model.id === "string"; }) : [];
+    updateModelSuggestions(models);
+    if (selectFirst) {
+      var nextModel = models.length ? models[0].id : "";
+      if (IDE.state.document.model !== nextModel) { IDE.state.document.model = nextModel; IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.setDirty(true); }
+    }
+    return models;
+  }
+  async function modelProperties(skipCatalog) {
+    if (!skipCatalog) await loadCatalog(false);
     if (!currentModel()) throw new Error("The request document has no model field. Add one to inspect model properties.");
     return request(withModel("/props"));
   }
   IDE.Server = {
-    loadModel: async function () {
+    loadModel: async function (skipCatalog) {
       var host = document.getElementById("model-properties"); host.innerHTML = '<p class="empty-state">Loading…</p>';
       try {
-        var data = await modelProperties(); var rows = []; flatten(data, "", rows); host.replaceChildren();
+        var data = await modelProperties(skipCatalog); var rows = []; flatten(data, "", rows); host.replaceChildren();
         rows.forEach(function (pair) { var row = document.createElement("div"); row.className = "kv-row"; var k = document.createElement("span"); k.textContent = pair[0]; var v = document.createElement("span"); v.textContent = pair[1]; row.append(k, v); host.append(row); });
         IDE.App.connection(true, "Connected");
       } catch (error) { host.innerHTML = '<p class="empty-state"></p>'; host.firstChild.textContent = error.message; IDE.App.connection(false, "Connection failed"); }
@@ -59,6 +68,19 @@
           box.querySelector(".slot-state").textContent = slot.state || (slot.is_processing ? "processing" : "idle"); host.append(box);
         });
       } catch (error) { host.innerHTML = '<p class="empty-state"></p>'; host.firstChild.textContent = error.message; }
+    },
+    connect: async function () {
+      var button = document.getElementById("connect-server-button"); button.disabled = true; button.classList.add("busy");
+      IDE.App.connection(false, "Connecting…");
+      try {
+        var health = await request("/health");
+        var models = await loadCatalog(true);
+        IDE.App.refreshAll();
+        await Promise.all([IDE.Server.loadModel(true), IDE.Server.loadSlots()]);
+        var healthLabel = health && typeof health === "object" ? (health.status || health.message || "healthy") : (health || "healthy");
+        IDE.App.connection(true, "Connected · " + models.length + " model" + (models.length === 1 ? "" : "s") + " · " + healthLabel);
+        IDE.App.notice(models.length ? "Connected to llama-server. Selected " + models[0].id + "." : "Connected to llama-server, but no models were returned.");
+      } finally { button.disabled = false; button.classList.remove("busy"); }
     },
     applyTemplate: async function () {
       var out = document.getElementById("prompt-editor"); out.value = "Loading /apply-template…";

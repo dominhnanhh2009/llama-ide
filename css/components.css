@@ -11,6 +11,17 @@
 .primary { color: #10150c; border-color: var(--green); background: var(--green); font-weight: 650; }
 .primary:hover { background: #ccff98; }
 .secondary:hover, .icon-button:hover { border-color: #59635e; background: #242a27; }
+.action-button { width: 34px; height: 32px; display: flex; align-items: center; gap: 0; overflow: hidden; padding: 0 9px; white-space: nowrap; transition: width .16s ease, gap .16s ease, background-color .12s; }
+.action-button:hover, .action-button:focus-visible { width: var(--action-width, 142px); gap: 8px; }
+.action-button:nth-child(1) { --action-width: 116px; }
+.action-button:nth-child(2) { --action-width: 174px; }
+.action-button:nth-child(3) { --action-width: 164px; }
+.action-button:nth-child(4) { --action-width: 124px; }
+.action-icon { flex: 0 0 16px; display: grid; place-items: center; font: 700 12px ui-monospace, monospace; }
+.action-label { opacity: 0; font-size: 11px; transition: opacity .1s ease; }
+.action-button:hover .action-label, .action-button:focus-visible .action-label { opacity: 1; }
+.action-button.busy .action-icon { animation: action-spin .8s linear infinite; }
+@keyframes action-spin { to { transform: rotate(360deg); } }
 .icon-button { width: 31px; height: 31px; display: grid; place-items: center; padding: 0; font-size: 18px; }
 .view-tabs button { border: 0; border-bottom: 2px solid transparent; padding: 0 12px; background: transparent; color: var(--muted); }
 .view-tabs button:hover { color: var(--text); }

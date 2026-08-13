@@ -70,10 +70,11 @@
       localStorage.setItem("llamaIde.toolLoopLimit", String(limit));
     },
 
-    connect: async function () {
-      var url = document.getElementById("mcp-url").value.trim();
-      var button = document.getElementById("mcp-connect");
-      button.disabled = true; button.textContent = "Discovering…";
+    connect: async function (options) {
+      options = options || {};
+      var url = options.url !== undefined ? options.url : document.getElementById("mcp-url").value.trim();
+      var button = options.button || document.getElementById("mcp-connect"); var originalText = button.textContent;
+      button.disabled = true; button.classList.add("busy"); if (!options.button) button.textContent = "Discovering…";
       try {
         if (IDE.state.activeView === "raw") {
           IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value);
@@ -95,8 +96,10 @@
         localStorage.setItem("llamaIde.mcpUrl", url);
         IDE.state.rawText = IDE.Json.pretty(IDE.state.document);
         IDE.App.refreshAll(); IDE.setDirty(true);
-        document.getElementById("mcp-status").textContent = "Connected · " + added + " tools appended" + (instructionsAdded ? " · instructions appended" : "");
-      } finally { button.disabled = false; button.textContent = "Discover tools"; }
+        var status = "Connected · " + added + " tools appended" + (instructionsAdded ? " · instructions appended" : "");
+        document.getElementById("mcp-status").textContent = status;
+        IDE.App.notice(status + ".");
+      } finally { button.disabled = false; button.classList.remove("busy"); if (!options.button) button.textContent = originalText; }
     },
 
     toolCalls: function (message) {

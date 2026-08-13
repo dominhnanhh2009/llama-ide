@@ -285,7 +285,12 @@
   function renderTools(root, data) {
     var tools = Array.isArray(data.tools) ? data.tools : null; var disabled = IDE.state.disabledTools;
     var total = (tools ? tools.length : 0) + disabled.length;
-    var title = el("div", "section-title"); title.append(el("h2", "", "Tools"), el("span", "count", (tools ? tools.length : 0) + " ENABLED · " + total + " TOTAL")); root.append(title);
+    var title = el("div", "section-title"); var titleActions = el("div", "section-title-actions");
+    titleActions.append(el("span", "count", (tools ? tools.length : 0) + " ENABLED · " + total + " TOTAL"));
+    if (total) titleActions.append(button("Remove all tools", "danger-button", function () {
+      if (Array.isArray(data.tools)) data.tools.length = 0; IDE.state.disabledTools.length = 0; commit(); showToolsDialog();
+    }));
+    title.append(el("h2", "", "Tools"), titleActions); root.append(title);
     if (!tools && data.tools !== undefined) {
       var invalidCard = el("div", "field-card invalid"); invalidCard.append(el("div", "field-label", "Tools must be an array"), el("p", "empty-state", "Fix the tools value in Raw request before configuring it here.")); root.append(invalidCard);
     }

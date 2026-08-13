@@ -33,9 +33,11 @@
     <section class="document-panel">
       <div class="document-head">
         <div><span class="eyebrow">REQUEST DOCUMENT</span><h1 id="file-name">untitled.json</h1></div>
-        <div class="document-actions">
-          <button class="secondary" id="format-button">Format JSON</button>
-          <button class="primary" id="run-button">Run request</button>
+        <div class="document-actions" aria-label="Request actions">
+          <button class="action-button secondary" id="format-button" title="Format JSON" aria-label="Format JSON"><span class="action-icon">{ }</span><span class="action-label">Format JSON</span></button>
+          <button class="action-button secondary" id="connect-server-button" title="Connect llama-server" aria-label="Connect llama-server"><span class="action-icon">⛓</span><span class="action-label">Connect llama-server</span></button>
+          <button class="action-button secondary" id="use-mcp-button" title="Use tools from MCP" aria-label="Use tools from MCP"><span class="action-icon">⌘</span><span class="action-label">Use tools from MCP</span></button>
+          <button class="action-button primary" id="run-button" title="Run request" aria-label="Run request"><span class="action-icon">▶</span><span class="action-label">Run request</span></button>
         </div>
       </div>
       <nav class="view-tabs" aria-label="Document views">

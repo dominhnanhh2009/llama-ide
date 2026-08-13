@@ -9,7 +9,8 @@
 .workspace { height: calc(100vh - 48px); display: grid; grid-template-columns: minmax(520px, 1fr) minmax(280px, 340px); }
 .document-panel { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); }
 .document-head { min-height: 76px; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line-soft); }
-.document-actions { display: flex; gap: 8px; }
+.document-actions { position: fixed; z-index: 16; top: 58px; right: 360px; display: flex; gap: 6px; padding: 6px; border: 1px solid var(--line); background: #111413e8; box-shadow: 0 8px 24px #0007; backdrop-filter: blur(8px); }
+@media (max-width: 900px) { .document-actions { right: 300px; } }
 .view-tabs { height: 42px; display: flex; align-items: stretch; gap: 3px; padding: 0 16px; border-bottom: 1px solid var(--line); background: #111413; }
 .view { display: none; min-height: 0; flex: 1; overflow: auto; }
 .view.active { display: block; }

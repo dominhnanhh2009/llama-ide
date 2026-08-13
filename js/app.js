@@ -40,6 +40,11 @@
   document.querySelectorAll("[data-action]").forEach(function (b) { b.addEventListener("click", function () { var action = b.dataset.action; if (action === "settings") { document.getElementById("base-url").value = IDE.state.settings.baseUrl; IDE.MCP.open(); } else if (action === "new") IDE.Files.newFile(); else if (action === "open") IDE.App.safe(IDE.Files.open); else if (action === "save") IDE.App.safe(IDE.Files.save); else if (action === "save-as") IDE.App.safe(IDE.Files.saveAs); }); });
   document.getElementById("settings-form").addEventListener("submit", function (event) { event.preventDefault(); IDE.state.settings.baseUrl = document.getElementById("base-url").value.trim(); IDE.MCP.captureForm(); localStorage.setItem("llamaIde.baseUrl", IDE.state.settings.baseUrl); document.getElementById("settings-dialog").close(); IDE.Server.loadModel(); IDE.Server.loadSlots(); });
   document.getElementById("mcp-connect").addEventListener("click", function () { IDE.App.safe(IDE.MCP.connect); });
+  document.getElementById("connect-server-button").addEventListener("click", function () { IDE.App.safe(IDE.Server.connect); });
+  document.getElementById("use-mcp-button").addEventListener("click", function () {
+    var button = document.getElementById("use-mcp-button");
+    IDE.App.safe(function () { return IDE.MCP.connect({ url: IDE.state.settings.mcpUrl, button: button }); });
+  });
   document.querySelectorAll("[data-close-settings]").forEach(function (button) { button.addEventListener("click", function () { document.getElementById("settings-dialog").close(); }); });
   document.getElementById("file-input").addEventListener("change", function () { if (this.files[0]) IDE.App.safe(function () { return IDE.Files.openInput(this.files[0]); }.bind(this)); this.value = ""; });
   document.getElementById("raw-editor").addEventListener("input", function () { IDE.state.rawText = this.value; IDE.Json.highlight(document.getElementById("raw-highlight"), this.value); IDE.setDirty(true); try { IDE.Json.parse(this.value); document.getElementById("json-status").textContent = "Valid JSON"; } catch (_) { document.getElementById("json-status").textContent = "Invalid JSON"; } });
