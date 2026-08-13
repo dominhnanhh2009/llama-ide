@@ -11,7 +11,7 @@
     var blob = new Blob([IDE.Json.pretty(IDE.state.document) + "\n"], { type: "application/json" }); var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = IDE.state.fileName || "request.json"; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000); IDE.setDirty(false);
   }
   IDE.Files = {
-    newFile: function () { loadText('{\n  "messages": [],\n  "model": "",\n  "reasoning_control": true,\n  "thinking_budget_tokens": 512,\n  "max_tokens": 1024\n}', "untitled.json", null); IDE.setDirty(true); },
+    newFile: function () { loadText('{\n  "messages": [],\n  "model": "",\n  "reasoning_control": true,\n  "chat_template_kwargs": {\n    "enable_thinking": true\n  },\n  "thinking_budget_tokens": 512,\n  "max_tokens": 1024\n}', "untitled.json", null); IDE.setDirty(true); },
     open: async function () {
       if (window.showOpenFilePicker) {
         var handles = await showOpenFilePicker({ types: [{ description: "JSON request", accept: { "application/json": [".json", ".txt"] } }], multiple: false }); var file = await handles[0].getFile(); loadText(await file.text(), file.name, handles[0]);

@@ -12,7 +12,7 @@
   }
   function autoSize(area) {
     area.style.height = "0";
-    var minimum = area.classList.contains("tool-description") ? 40 : area.classList.contains("tool-result-content") ? 42 : 78;
+    var minimum = area.classList.contains("tool-description") ? 40 : area.classList.contains("tool-result-content") ? 38 : area.classList.contains("text-content") ? 58 : 72;
     area.style.height = Math.max(area.scrollHeight + 2, minimum) + "px";
   }
   function expandingArea(className, value) {
@@ -189,6 +189,9 @@
     area.addEventListener("input", function () { try { message.content = IDE.Json.parseScalarText(area.value, message.content); commit(); } catch (_) {} });
     body.append(area);
   }
+  function messageRoleClass(role) {
+    return ["assistant", "user", "system", "tool"].indexOf(role) !== -1 ? " role-" + role : " role-other";
+  }
   function contentEditor(message, key, body) {
     var group = el("div", "content-group");
     var title = el("div", "field-label"); title.append(el("span", "", key));
@@ -222,10 +225,12 @@
     body.append(group);
   }
   function messageCard(message, index, messages) {
-    var isToolResult = message && message.role === "tool"; var card = el("article", "message-card" + (isToolResult ? " tool-result-card" : ""));
+    var isToolResult = message && message.role === "tool"; var card = el("article", "message-card" + messageRoleClass(message && message.role) + (isToolResult ? " tool-result-card" : ""));
     var head = el("div", "message-head"); head.append(el("span", "drag-index", "#" + (index + 1)));
     var role = el("input", "role-input"); role.value = message.role === undefined ? "" : String(message.role); role.setAttribute("list", "role-suggestions"); role.placeholder = "role";
-    role.addEventListener("input", function () { message.role = role.value; commit(); });
+    role.addEventListener("input", function () {
+      message.role = role.value; card.className = "message-card" + messageRoleClass(role.value) + (role.value === "tool" ? " tool-result-card" : ""); commit();
+    });
     head.append(role);
     if (isToolResult) {
       var callId = el("input", "tool-result-id"); callId.value = message.tool_call_id || ""; callId.placeholder = "tool_call_id"; callId.addEventListener("input", function () { message.tool_call_id = callId.value; commit(); });
@@ -247,7 +252,7 @@
         group.append(area); body.append(group);
       }
     });
-    var addFields = el("div", "content-group");
+    var addFields = el("div", "content-group add-fields");
     if (!("content" in message)) addFields.append(button("+ content", "mini-button", function () { message.content = ""; commit(); IDE.Rendered.render(); }));
     if (!("reasoning_content" in message) && !Array.isArray(message.tool_calls)) addFields.append(button("+ reasoning_content", "mini-button", function () { message.reasoning_content = ""; commit(); IDE.Rendered.render(); }));
     if (addFields.childNodes.length) body.append(addFields);
@@ -348,6 +353,14 @@
   }
   function topField(key, value) {
     var card = el("div", "field-card"); card.append(el("div", "field-label", key));
+    if (key === "chat_template_kwargs" && value && typeof value === "object" && !Array.isArray(value)) {
+      card.querySelector(".field-label").textContent = "chat_template_kwargs.enable_thinking";
+      var thinking = el("select", "field-input");
+      ["true", "false"].forEach(function (item) { var option = el("option", "", item); option.value = item; thinking.append(option); });
+      thinking.value = value.enable_thinking === false ? "false" : "true";
+      thinking.addEventListener("change", function () { value.enable_thinking = thinking.value === "true"; commit(); });
+      card.append(thinking); return card;
+    }
     var suggestions = {
       reasoning_control: ["true", "false"], stream: ["true", "false"], backend_sampling: ["true", "false"],
       return_progress: ["true", "false"], timings_per_token: ["true", "false"], reasoning_format: ["auto", "none", "deepseek"],
