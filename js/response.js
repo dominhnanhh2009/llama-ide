@@ -39,6 +39,9 @@
       return metadata;
     });
   }
+  function compactMetric(label, value, title) {
+    var item = el("span", "response-compact-metric"); item.title = title || label; item.append(el("b", "", label), document.createTextNode(" " + valueText(value))); return item;
+  }
   IDE.Response = {
     render: function () {
       var panel = document.getElementById("response-panel"); var root = document.getElementById("response-editor"); var toggle = document.getElementById("response-toggle"); var status = document.getElementById("response-status");
@@ -47,7 +50,11 @@
       var response = IDE.state.lastResponse;
       if (!response || typeof response !== "object") { status.textContent = "No response"; root.append(el("p", "empty-state", "Run a request to inspect response metadata. It stays in this browser session and is not added to the request JSON.")); return; }
       var usage = response.usage || {}; var timings = response.timings || {}; var choices = Array.isArray(response.choices) ? response.choices : [];
-      status.textContent = valueText(response.model) + " · " + valueText(usage.total_tokens) + " tokens";
+      status.replaceChildren(
+        compactMetric("P", usage.prompt_tokens, "Prompt tokens"), compactMetric("C", usage.completion_tokens, "Completion tokens"), compactMetric("T", usage.total_tokens, "Total tokens"),
+        compactMetric("PP", timings.prompt_per_second, "Prompt processing tokens/second"), compactMetric("GEN", timings.predicted_per_second, "Generation tokens/second"),
+        compactMetric("STOP", choices[0] && choices[0].finish_reason, "Stop reason")
+      );
       var content = el("div", "response-content"); var summary = el("div", "response-summary");
       summary.append(stat("Model", response.model), stat("Created", createdText(response.created)), stat("Object", response.object), stat("Choices", choices.length), stat("Prompt tokens", usage.prompt_tokens), stat("Completion tokens", usage.completion_tokens), stat("Total tokens", usage.total_tokens), stat("Generation tok/s", timings.predicted_per_second));
       content.append(summary);

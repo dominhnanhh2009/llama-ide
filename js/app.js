@@ -8,7 +8,6 @@
   function captureResponse(response) {
     if (response && typeof response === "object") {
       IDE.state.lastResponse = JSON.parse(JSON.stringify(response));
-      IDE.state.responseOpen = true;
       IDE.Response.render();
     }
     if (!Array.isArray(IDE.state.document.messages)) throw new Error("Cannot capture the response because messages is not an array.");
@@ -51,25 +50,33 @@
   document.getElementById("raw-editor").addEventListener("scroll", function () { var highlight = document.getElementById("raw-highlight"); highlight.scrollTop = this.scrollTop; highlight.scrollLeft = this.scrollLeft; });
   document.getElementById("format-button").addEventListener("click", function () { IDE.App.safe(async function () { if (IDE.state.activeView === "raw") { IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value); } IDE.state.rawText = IDE.Json.pretty(IDE.state.document); syncRaw(); IDE.setDirty(true); }); });
   document.getElementById("refresh-prompt").addEventListener("click", IDE.Server.applyTemplate); document.getElementById("refresh-model").addEventListener("click", IDE.Server.loadModel); document.getElementById("refresh-slots").addEventListener("click", IDE.Server.loadSlots);
-  document.getElementById("run-button").addEventListener("click", function () { IDE.App.safe(async function () {
-    if (IDE.state.activeView === "raw") { IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value); IDE.state.rawText = document.getElementById("raw-editor").value; }
-    var count = 0, toolCount = 0;
-    var turnLimit = IDE.state.settings.toolLoopLimit;
-    for (var turn = 0; turn < turnLimit; turn += 1) {
-      var result = await IDE.Server.run(); count += captureResponse(result);
-      var message = result && result.choices && result.choices[0] && result.choices[0].message;
-      var calls = IDE.MCP.toolCalls(message);
-      if (!calls.length) break;
-      for (var i = 0; i < calls.length; i += 1) {
-        var toolResult = await IDE.MCP.call(calls[i]);
-        IDE.state.document.messages.push(IDE.MCP.toolMessage(calls[i], toolResult)); toolCount += 1;
+  document.getElementById("run-button").addEventListener("click", function () {
+    var runButton = document.getElementById("run-button"); var icon = runButton.querySelector(".action-icon"); var label = runButton.querySelector(".action-label");
+    IDE.App.safe(async function () {
+      runButton.disabled = true; runButton.classList.add("busy"); icon.textContent = "◌"; label.textContent = "Waiting for response"; runButton.setAttribute("aria-label", "Waiting for response");
+      try {
+        if (IDE.state.activeView === "raw") { IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value); IDE.state.rawText = document.getElementById("raw-editor").value; }
+        var count = 0, toolCount = 0;
+        var turnLimit = IDE.state.settings.toolLoopLimit;
+        for (var turn = 0; turn < turnLimit; turn += 1) {
+          var result = await IDE.Server.run(); count += captureResponse(result);
+          var message = result && result.choices && result.choices[0] && result.choices[0].message;
+          var calls = IDE.MCP.toolCalls(message);
+          if (!calls.length) break;
+          for (var i = 0; i < calls.length; i += 1) {
+            var toolResult = await IDE.MCP.call(calls[i]);
+            IDE.state.document.messages.push(IDE.MCP.toolMessage(calls[i], toolResult)); toolCount += 1;
+          }
+          IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.setDirty(true); IDE.Rendered.render(); syncRaw();
+          if (turn === turnLimit - 1) throw new Error("Stopped after " + turnLimit + " model/tool turns. Change the limit in Settings if needed.");
+        }
+        activateView("rendered");
+        IDE.App.notice("Captured " + count + " assistant message" + (count === 1 ? "" : "s") + (toolCount ? " and executed " + toolCount + " MCP tool call" + (toolCount === 1 ? "" : "s") : "") + ". Response metadata is shown below for this session only.");
+      } finally {
+        runButton.disabled = false; runButton.classList.remove("busy"); icon.textContent = "▶"; label.textContent = "Run request"; runButton.setAttribute("aria-label", "Run request");
       }
-      IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.setDirty(true); IDE.Rendered.render(); syncRaw();
-      if (turn === turnLimit - 1) throw new Error("Stopped after " + turnLimit + " model/tool turns. Change the limit in Settings if needed.");
-    }
-    activateView("rendered");
-    IDE.App.notice("Captured " + count + " assistant message" + (count === 1 ? "" : "s") + (toolCount ? " and executed " + toolCount + " MCP tool call" + (toolCount === 1 ? "" : "s") : "") + ". Response metadata is shown below for this session only.");
-  }); });
+    });
+  });
   document.addEventListener("keydown", function (event) { if (!(event.ctrlKey || event.metaKey)) return; if (event.key.toLowerCase() === "s") { event.preventDefault(); IDE.App.safe(IDE.Files.save); } if (event.key.toLowerCase() === "o") { event.preventDefault(); IDE.App.safe(IDE.Files.open); } if (event.key.toLowerCase() === "n") { event.preventDefault(); IDE.Files.newFile(); } });
   window.addEventListener("beforeunload", function (event) { if (IDE.state.dirty) { event.preventDefault(); event.returnValue = ""; } });
   IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.App.refreshAll();

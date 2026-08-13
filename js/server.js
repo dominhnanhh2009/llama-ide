@@ -84,7 +84,10 @@
     },
     applyTemplate: async function () {
       var out = document.getElementById("prompt-editor"); out.value = "Loading /apply-template…";
-      try { var data = await request("/apply-template", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(IDE.state.document) }); out.value = typeof data === "string" ? data : JSON.stringify(data, null, 2); }
+      try {
+        var data = await request("/apply-template", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(IDE.state.document) });
+        out.value = data && typeof data === "object" && typeof data.prompt === "string" ? data.prompt : typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      }
       catch (error) { out.value = "ERROR\n" + error.message; }
     },
     run: async function () {
