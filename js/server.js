@@ -9,6 +9,67 @@
     if (!response.ok) throw new Error(response.status + " " + response.statusText + (text ? "\n" + text : ""));
     try { return JSON.parse(text); } catch (_) { return text; }
   }
+  function mergeToolCall(message, part) {
+    if (!Array.isArray(message.tool_calls)) message.tool_calls = [];
+    var index = Number.isInteger(part.index) ? part.index : message.tool_calls.length;
+    var target = message.tool_calls[index] || {};
+    if (part.id !== undefined) target.id = part.id;
+    if (part.type !== undefined) target.type = part.type;
+    if (part.function) {
+      target.function = target.function || {};
+      if (part.function.name) target.function.name = (target.function.name || "") + part.function.name;
+      if (part.function.arguments) target.function.arguments = (target.function.arguments || "") + part.function.arguments;
+    }
+    message.tool_calls[index] = target;
+  }
+  function mergeChunk(result, chunk) {
+    Object.keys(chunk).forEach(function (key) {
+      if (key === "choices" || key === "error") return;
+      result[key] = key === "object" && typeof chunk[key] === "string" ? chunk[key].replace(".chunk", "") : chunk[key];
+    });
+    result.object = result.object || "chat.completion";
+    (chunk.choices || []).forEach(function (part) {
+      var index = Number.isInteger(part.index) ? part.index : 0;
+      var choice = result.choices[index] || { index: index, message: { role: "assistant" }, finish_reason: null };
+      var delta = part.delta || {};
+      Object.keys(delta).forEach(function (key) {
+        if (key === "tool_calls" && Array.isArray(delta.tool_calls)) delta.tool_calls.forEach(function (call) { mergeToolCall(choice.message, call); });
+        else if (key === "content" || key === "reasoning_content" || key === "reasoning") choice.message[key] = (choice.message[key] || "") + (delta[key] || "");
+        else if (delta[key] !== undefined) choice.message[key] = delta[key];
+      });
+      if (part.finish_reason !== undefined && part.finish_reason !== null) choice.finish_reason = part.finish_reason;
+      if (part.logprobs !== undefined) choice.logprobs = part.logprobs;
+      result.choices[index] = choice;
+    });
+  }
+  function partialText(result) {
+    var message = result.choices[0] && result.choices[0].message || {};
+    return { content: message.content || "", reasoning: message.reasoning_content || message.reasoning || "" };
+  }
+  async function streamRequest(path, options, onProgress) {
+    if (!IDE.state.settings.baseUrl) throw new Error("Set llama-server base URL in Settings first.");
+    var response = await fetch(url(path), options);
+    if (!response.ok) { var errorText = await response.text(); throw new Error(response.status + " " + response.statusText + (errorText ? "\n" + errorText : "")); }
+    if (!response.body) throw new Error("This browser did not expose the SSE response stream.");
+    var reader = response.body.getReader(), decoder = new TextDecoder(), buffer = "";
+    var result = { object: "chat.completion", choices: [] }, doneEvent = false;
+    function consume(block) {
+      var data = block.split(/\r?\n/).filter(function (line) { return line.indexOf("data:") === 0; }).map(function (line) { return line.slice(5).trimStart(); }).join("\n");
+      if (!data) return;
+      if (data.trim() === "[DONE]") { doneEvent = true; return; }
+      var chunk;
+      try { chunk = JSON.parse(data); } catch (error) { throw new Error("Invalid SSE data: " + error.message); }
+      if (chunk.error) throw new Error(chunk.error.message || JSON.stringify(chunk.error));
+      mergeChunk(result, chunk); if (onProgress) onProgress(partialText(result));
+    }
+    while (!doneEvent) {
+      var next = await reader.read(); buffer += decoder.decode(next.value || new Uint8Array(), { stream: !next.done });
+      var boundary;
+      while ((boundary = buffer.search(/\r?\n\r?\n/)) !== -1) { var block = buffer.slice(0, boundary); buffer = buffer.slice(boundary).replace(/^\r?\n\r?\n/, ""); consume(block); }
+      if (next.done) { if (buffer.trim()) consume(buffer); break; }
+    }
+    result.choices = result.choices.filter(Boolean); return result;
+  }
   function flatten(value, prefix, rows) {
     if (value && typeof value === "object") Object.keys(value).forEach(function (key) { flatten(value[key], prefix ? prefix + "." + key : key, rows); });
     else rows.push([prefix, String(value)]);
@@ -126,9 +187,9 @@
       }
       catch (error) { out.value = "ERROR\n" + error.message; }
     },
-    run: async function () {
-      if (IDE.state.document.stream === true) throw new Error("This request has stream: true. SSE support is intentionally not implemented yet. Change the field yourself to run it; the IDE will not override your request.");
-      return request("/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(IDE.state.document) });
+    run: async function (onProgress) {
+      var options = { method: "POST", headers: { "Content-Type": "application/json", "Accept": IDE.state.document.stream === true ? "text/event-stream" : "application/json" }, body: JSON.stringify(IDE.state.document) };
+      return IDE.state.document.stream === true ? streamRequest("/v1/chat/completions", options, onProgress) : request("/v1/chat/completions", options);
     }
   };
 })();

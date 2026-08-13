@@ -5,7 +5,14 @@
     var area = document.getElementById("raw-editor"); area.value = IDE.state.rawText || IDE.Json.pretty(IDE.state.document);
     IDE.Json.highlight(document.getElementById("raw-highlight"), area.value);
   }
-  function captureResponse(response) {
+  var streamRenderTimer = null;
+  function scheduleStreamRender() {
+    if (streamRenderTimer !== null) return;
+    streamRenderTimer = setTimeout(function () {
+      streamRenderTimer = null; IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.Rendered.render(); syncRaw();
+    }, 250);
+  }
+  function captureResponse(response, streamedMessage) {
     if (response && typeof response === "object") {
       IDE.state.lastResponse = JSON.parse(JSON.stringify(response));
       IDE.Response.render();
@@ -14,7 +21,9 @@
     if (!response || !Array.isArray(response.choices)) throw new Error("The server response has no choices array. Nothing was added to the document.");
     var messages = response.choices.filter(function (choice) { return choice && choice.message && typeof choice.message === "object"; }).map(function (choice) { return JSON.parse(JSON.stringify(choice.message)); });
     if (!messages.length) throw new Error("The server response contains no choice.message object. Nothing was added to the document.");
-    Array.prototype.push.apply(IDE.state.document.messages, messages);
+    var streamedIndex = streamedMessage ? IDE.state.document.messages.indexOf(streamedMessage) : -1;
+    if (streamedIndex !== -1) IDE.state.document.messages.splice.apply(IDE.state.document.messages, [streamedIndex, 1].concat(messages));
+    else Array.prototype.push.apply(IDE.state.document.messages, messages);
     IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.setDirty(true); IDE.Rendered.render(); syncRaw();
     return messages.length;
   }
@@ -76,7 +85,17 @@
         var count = 0, toolCount = 0;
         var turnLimit = IDE.state.settings.toolLoopLimit;
         for (var turn = 0; turn < turnLimit; turn += 1) {
-          var result = await IDE.Server.run(); count += captureResponse(result);
+          var streamedMessage = null;
+          if (IDE.state.document.stream === true) {
+            streamedMessage = { role: "assistant", content: "" }; IDE.state.document.messages.push(streamedMessage); IDE.setDirty(true); scheduleStreamRender();
+          }
+          var result = await IDE.Server.run(function (partial) {
+            if (!streamedMessage) return;
+            streamedMessage.content = partial.content;
+            if (partial.reasoning) streamedMessage.reasoning_content = partial.reasoning;
+            scheduleStreamRender();
+          });
+          count += captureResponse(result, streamedMessage);
           var message = result && result.choices && result.choices[0] && result.choices[0].message;
           var calls = IDE.MCP.toolCalls(message);
           if (!calls.length) break;

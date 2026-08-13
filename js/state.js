@@ -4,7 +4,7 @@
   LlamaIDE.state = {
     fileName: "untitled.json",
     fileHandle: null,
-    document: { messages: [], model: "", temperature: 0.8, repeat_penalty: 1.0, reasoning_control: true, chat_template_kwargs: { enable_thinking: true }, thinking_budget_tokens: 512, max_tokens: -1 },
+    document: { messages: [], model: "", stream: true, stream_options: { include_usage: true }, temperature: 0.8, repeat_penalty: 1.0, reasoning_control: true, chat_template_kwargs: { enable_thinking: true }, thinking_budget_tokens: 512, max_tokens: -1 },
     lastResponse: null,
     responseOpen: false,
     disabledTools: [],

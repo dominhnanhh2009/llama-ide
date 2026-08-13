@@ -1,4 +1,4 @@
 # TODO
 
-- [ ] Support streamed responses (SSE).
+- [x] Support streamed responses (SSE).
 - [ ] Enhance UX/DX continuously (forever).
