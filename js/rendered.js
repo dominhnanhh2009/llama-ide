@@ -125,6 +125,20 @@
       reader.readAsDataURL(file);
     });
   }
+  async function pasteImagesIntoMessage(message, files) {
+    var images = files.filter(function (file) { return file && file.type && file.type.indexOf("image/") === 0; });
+    if (!images.length) return false;
+    var value = message.content;
+    if (!Array.isArray(value)) {
+      message.content = value === "" || value === null || value === undefined
+        ? []
+        : [{ type: "text", text: typeof value === "string" ? value : IDE.Json.scalarText(value) }];
+    }
+    var urls = await Promise.all(images.map(readImage));
+    urls.forEach(function (url) { message.content.push({ type: "image_url", image_url: { url: url } }); });
+    commit(); IDE.Rendered.render(); IDE.App.notice("Pasted " + images.length + " image" + (images.length === 1 ? "" : "s") + " into this message.");
+    return true;
+  }
   async function fillPartFromFile(part, file) {
     var isImage = file.type && file.type.indexOf("image/") === 0;
     if (part.type === "image_url" && !isImage) throw new Error("An image_url part only accepts image files or an image link.");
@@ -272,13 +286,31 @@
     group.append(title);
     var value = message[key];
     if (Array.isArray(value)) {
+      var draggedIndex = null;
       value.forEach(function (part, partIndex) {
         var card = el("div", "part-card");
         if (!part || typeof part !== "object" || Array.isArray(part)) { part = { type: "text", text: IDE.Json.scalarText(part) }; value[partIndex] = part; }
-        var tools = el("div", "part-toolbar"); tools.append(el("span", "", "PART " + (partIndex + 1)));
+        var tools = el("div", "part-toolbar");
+        var handle = el("span", "part-drag-handle", ""); handle.draggable = true; handle.title = "Drag to move this part"; handle.setAttribute("role", "button"); handle.setAttribute("aria-label", "Move part " + (partIndex + 1));
+        handle.addEventListener("dragstart", function (event) { draggedIndex = partIndex; card.classList.add("part-dragging"); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(partIndex)); });
+        handle.addEventListener("dragend", function () { draggedIndex = null; card.classList.remove("part-dragging"); group.querySelectorAll(".part-card").forEach(function (item) { item.classList.remove("part-drop-before", "part-drop-after"); }); });
+        tools.append(handle, el("span", "", "PART " + (partIndex + 1)));
         var typeWrap = el("label", "part-type-label", "TYPE"); var typeInput = el("input", "part-type-input"); typeInput.value = typeof part.type === "string" ? part.type : ""; typeInput.setAttribute("list", "part-type-suggestions");
         typeInput.addEventListener("change", function () { changePartType(part, typeInput.value.trim()); }); typeWrap.append(typeInput); tools.append(typeWrap);
         tools.append(button("Remove", "danger-button", function () { value.splice(partIndex, 1); commit(); IDE.Rendered.render(); }));
+        card.addEventListener("dragover", function (event) {
+          if (draggedIndex === null || draggedIndex === partIndex) return;
+          event.preventDefault(); event.dataTransfer.dropEffect = "move";
+          var after = event.clientY > card.getBoundingClientRect().top + card.offsetHeight / 2;
+          card.classList.toggle("part-drop-before", !after); card.classList.toggle("part-drop-after", after);
+        });
+        card.addEventListener("dragleave", function () { card.classList.remove("part-drop-before", "part-drop-after"); });
+        card.addEventListener("drop", function (event) {
+          if (draggedIndex === null || draggedIndex === partIndex) return;
+          event.preventDefault(); var after = event.clientY > card.getBoundingClientRect().top + card.offsetHeight / 2;
+          var moved = value.splice(draggedIndex, 1)[0]; var target = partIndex + (after ? 1 : 0); if (draggedIndex < target) target -= 1;
+          value.splice(target, 0, moved); draggedIndex = null; commit(); IDE.Rendered.render();
+        });
         card.append(tools); renderPart(part, card); enablePartDrop(card, part); group.append(card);
       });
     } else {
@@ -303,6 +335,12 @@
     }
     head.append(el("span", "spacer"), button("Remove message", "danger-button", function () { messages.splice(index, 1); commit(); IDE.Rendered.render(); }));
     var body = el("div", "message-body");
+    body.addEventListener("paste", function (event) {
+      var items = event.clipboardData && event.clipboardData.items ? Array.prototype.slice.call(event.clipboardData.items) : [];
+      var files = items.filter(function (item) { return item.kind === "file" && item.type.indexOf("image/") === 0; }).map(function (item) { return item.getAsFile(); }).filter(Boolean);
+      if (!files.length) return;
+      event.preventDefault(); IDE.App.safe(function () { return pasteImagesIntoMessage(message, files); });
+    });
     if (isToolResult && "content" in message) toolResultContent(message, body);
     Object.keys(message).forEach(function (key) {
       if (key === "role" || (isToolResult && (key === "tool_call_id" || key === "name" || key === "content"))) return;

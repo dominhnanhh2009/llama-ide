@@ -113,8 +113,14 @@
 .field-input { width: 100%; height: 38px; padding: 8px 10px; font: 13px ui-monospace, monospace; }
 .part-card { margin: 7px 0; border-left: 2px solid #53614b; padding-left: 9px; }
 .part-card.invalid { border-left-color: var(--danger); }
+.part-card.part-dragging { opacity: .45; }
+.part-card.part-drop-before { box-shadow: 0 -2px 0 var(--green); }
+.part-card.part-drop-after { box-shadow: 0 2px 0 var(--green); }
 .part-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; color: var(--muted); font: 10px ui-monospace, monospace; }
 .part-toolbar > .danger-button { margin-left: auto; }
+.part-drag-handle { width: 12px; height: 22px; flex: 0 0 12px; cursor: grab; opacity: .55; background-image: radial-gradient(circle, #9aa49e 1.2px, transparent 1.4px); background-size: 5px 5px; background-position: 1px 1px; }
+.part-drag-handle:hover { opacity: 1; }
+.part-drag-handle:active { cursor: grabbing; }
 .part-type-label { display: flex; align-items: center; gap: 6px; }
 .part-type-input { width: 140px; height: 28px; padding: 4px 7px; color: var(--green); font: 12px ui-monospace, monospace; }
 .file-drop-target { position: relative; border-radius: 3px; transition: background-color .12s, box-shadow .12s; }
