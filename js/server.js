@@ -187,9 +187,10 @@
       }
       catch (error) { out.value = "ERROR\n" + error.message; }
     },
-    run: async function (onProgress) {
-      var options = { method: "POST", headers: { "Content-Type": "application/json", "Accept": IDE.state.document.stream === true ? "text/event-stream" : "application/json" }, body: JSON.stringify(IDE.state.document) };
-      return IDE.state.document.stream === true ? streamRequest("/v1/chat/completions", options, onProgress) : request("/v1/chat/completions", options);
+    run: async function (document, onProgress) {
+      var payload = document || IDE.state.document; var streaming = payload.stream === true;
+      var options = { method: "POST", headers: { "Content-Type": "application/json", "Accept": streaming ? "text/event-stream" : "application/json" }, body: JSON.stringify(payload) };
+      return streaming ? streamRequest("/v1/chat/completions", options, onProgress) : request("/v1/chat/completions", options);
     }
   };
 })();

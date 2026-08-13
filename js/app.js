@@ -85,11 +85,12 @@
         var count = 0, toolCount = 0;
         var turnLimit = IDE.state.settings.toolLoopLimit;
         for (var turn = 0; turn < turnLimit; turn += 1) {
+          var requestDocument = JSON.parse(JSON.stringify(IDE.state.document));
           var streamedMessage = null;
-          if (IDE.state.document.stream === true) {
+          if (requestDocument.stream === true) {
             streamedMessage = { role: "assistant", content: "" }; IDE.state.document.messages.push(streamedMessage); IDE.setDirty(true); scheduleStreamRender();
           }
-          var result = await IDE.Server.run(function (partial) {
+          var result = await IDE.Server.run(requestDocument, function (partial) {
             if (!streamedMessage) return;
             streamedMessage.content = partial.content;
             if (partial.reasoning) streamedMessage.reasoning_content = partial.reasoning;
