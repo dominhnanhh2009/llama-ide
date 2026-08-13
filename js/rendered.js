@@ -466,7 +466,8 @@
     var suggestions = {
       reasoning_control: ["true", "false"], stream: ["true", "false"], backend_sampling: ["true", "false"],
       return_progress: ["true", "false"], timings_per_token: ["true", "false"], reasoning_format: ["auto", "none", "deepseek"],
-      thinking_budget_tokens: ["0", "256", "512", "1024", "2048", "-1"], max_tokens: ["256", "512", "1024", "2048", "4096", "-1"]
+      temperature: ["0", "0.2", "0.7", "0.8", "1", "1.2"], repeat_penalty: ["1", "1.05", "1.1", "1.2"],
+      thinking_budget_tokens: ["0", "256", "512", "1024", "2048", "-1"], max_tokens: ["-1", "256", "512", "1024", "2048", "4096"]
     };
     var isCompact = key === "model" || suggestions[key];
     var input = isCompact ? el("input", "field-input") : jsonEditor(value, function (next) { IDE.state.document[key] = next; card.classList.remove("invalid"); commit(); });
@@ -498,7 +499,18 @@
       }
       var otherKeys = Object.keys(data).filter(function (key) { return key !== "messages" && key !== "tools"; });
       var otherTitle = el("div", "section-title"); otherTitle.style.marginTop = "28px"; otherTitle.append(el("h2", "", "Request fields"), el("span", "count", otherKeys.length + " FIELDS")); root.append(otherTitle);
-      otherKeys.forEach(function (key) { root.append(topField(key, data[key])); });
+      var fields = el("div", "request-fields");
+      function appendRow(className, keys) {
+        var present = keys.filter(function (key) { return otherKeys.indexOf(key) !== -1; });
+        if (!present.length) return;
+        var row = el("div", "request-field-row " + className);
+        present.forEach(function (key) { row.append(topField(key, data[key])); }); fields.append(row);
+      }
+      appendRow("model-sampling-row", ["model", "temperature", "repeat_penalty"]);
+      appendRow("reasoning-row", ["reasoning_control", "thinking_budget_tokens"]);
+      var grouped = ["model", "temperature", "repeat_penalty", "reasoning_control", "thinking_budget_tokens", "max_tokens"];
+      otherKeys.filter(function (key) { return grouped.indexOf(key) === -1; }).forEach(function (key) { fields.append(topField(key, data[key])); });
+      appendRow("max-tokens-row", ["max_tokens"]); root.append(fields);
       if (!document.getElementById("role-suggestions")) {
         var list = el("datalist"); list.id = "role-suggestions"; ["system", "tool", "user", "assistant"].forEach(function (v) { var o = el("option"); o.value = v; list.append(o); }); document.body.append(list);
       }
