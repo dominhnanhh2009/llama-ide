@@ -15,6 +15,10 @@
 .view.active { display: block; }
 #raw-view.active, #prompt-view.active { display: flex; flex-direction: column; }
 #rendered-editor { padding: 18px 20px 80px; max-width: 1040px; margin: 0 auto; }
+.response-panel { flex: 0 0 min(36vh, 340px); min-height: 0; display: flex; flex-direction: column; border-top: 1px solid #48514c; background: #101312; }
+.response-panel.collapsed { flex-basis: 38px; }
+.response-panel-body { min-height: 0; overflow: auto; }
+.response-panel.collapsed .response-panel-body { display: none; }
 .side-column { display: grid; grid-template-rows: minmax(0, 3fr) minmax(180px, 1fr); min-height: 0; }
 .side-panel { min-height: 0; overflow: auto; background: var(--panel); }
 .model-panel { border-bottom: 1px solid var(--line); }

@@ -5,6 +5,8 @@
     fileName: "untitled.json",
     fileHandle: null,
     document: { messages: [], model: "default", reasoning_control: true, thinking_budget_tokens: 512, max_tokens: 1024 },
+    lastResponse: null,
+    responseOpen: false,
     rawText: "",
     dirty: false,
     activeView: "rendered",

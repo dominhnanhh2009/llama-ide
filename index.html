@@ -53,6 +53,12 @@
         <div class="editor-toolbar"><span>APPLY-TEMPLATE RESPONSE · READ ONLY</span><button class="text-button" id="refresh-prompt">Refresh</button></div>
         <textarea id="prompt-editor" class="code-editor" readonly spellcheck="false" placeholder="Choose Refresh to call /apply-template. The response will appear here without transformation."></textarea>
       </div>
+      <section class="response-panel collapsed" id="response-panel">
+        <button class="response-panel-head" id="response-toggle" type="button" aria-expanded="false">
+          <span><span class="response-chevron">⌃</span> RESPONSE</span><span class="response-panel-status" id="response-status">No response</span>
+        </button>
+        <div class="response-panel-body" id="response-editor"><p class="empty-state">Run a request to inspect response metadata. It stays in this browser session and is not added to the request JSON.</p></div>
+      </section>
     </section>
 
     <aside class="side-column">
@@ -83,6 +89,7 @@
   <script src="js/state.js"></script>
   <script src="js/json.js"></script>
   <script src="js/rendered.js"></script>
+  <script src="js/response.js"></script>
   <script src="js/server.js"></script>
   <script src="js/files.js"></script>
   <script src="js/app.js"></script>

@@ -2,7 +2,7 @@
   "use strict";
   var IDE = window.LlamaIDE;
   function loadText(text, name, handle) {
-    var value = IDE.Json.parse(text); IDE.state.document = value; IDE.state.rawText = text; IDE.state.fileName = name || "untitled.json"; IDE.state.fileHandle = handle || null; IDE.setDirty(false); IDE.App.refreshAll();
+    var value = IDE.Json.parse(text); IDE.state.document = value; IDE.state.lastResponse = null; IDE.state.responseOpen = false; IDE.state.rawText = text; IDE.state.fileName = name || "untitled.json"; IDE.state.fileHandle = handle || null; IDE.setDirty(false); IDE.App.refreshAll();
   }
   async function saveWithHandle(handle) {
     var writable = await handle.createWritable(); await writable.write(IDE.Json.pretty(IDE.state.document) + "\n"); await writable.close(); IDE.state.fileHandle = handle; IDE.state.fileName = handle.name; IDE.setDirty(false);
