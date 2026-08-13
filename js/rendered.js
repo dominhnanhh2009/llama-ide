@@ -507,8 +507,8 @@
         present.forEach(function (key) { row.append(topField(key, data[key])); }); fields.append(row);
       }
       appendRow("model-sampling-row", ["model", "temperature", "repeat_penalty"]);
-      appendRow("reasoning-row", ["reasoning_control", "thinking_budget_tokens"]);
-      var grouped = ["model", "temperature", "repeat_penalty", "reasoning_control", "thinking_budget_tokens", "max_tokens"];
+      appendRow("reasoning-row", ["reasoning_control", "chat_template_kwargs", "thinking_budget_tokens"]);
+      var grouped = ["model", "temperature", "repeat_penalty", "reasoning_control", "chat_template_kwargs", "thinking_budget_tokens", "max_tokens"];
       otherKeys.filter(function (key) { return grouped.indexOf(key) === -1; }).forEach(function (key) { fields.append(topField(key, data[key])); });
       appendRow("max-tokens-row", ["max_tokens"]); root.append(fields);
       if (!document.getElementById("role-suggestions")) {
