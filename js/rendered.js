@@ -12,7 +12,7 @@
   }
   function autoSize(area) {
     area.style.height = "0";
-    var minimum = area.classList.contains("tool-description") ? 40 : 78;
+    var minimum = area.classList.contains("tool-description") ? 40 : area.classList.contains("tool-result-content") ? 42 : 78;
     area.style.height = Math.max(area.scrollHeight + 2, minimum) + "px";
   }
   function expandingArea(className, value) {
@@ -152,14 +152,42 @@
     var group = el("div", "content-group"); var calls = message[key]; var title = el("div", "field-label"); title.append(el("span", "", key), button("+ Tool call", "mini-button", function () { calls.push({ id: "", type: "function", function: { name: "", arguments: "{}" } }); commit(); IDE.Rendered.render(); })); group.append(title);
     calls.forEach(function (call, index) {
       if (!call || typeof call !== "object" || Array.isArray(call)) call = calls[index] = { id: "", type: "function", function: { name: "", arguments: "{}" } };
-      var card = el("div", "tool-call-card"); var head = el("div", "json-card-head");
-      head.append(el("span", "drag-index", "CALL " + (index + 1)), button("Remove", "danger-button", function () { calls.splice(index, 1); commit(); IDE.Rendered.render(); }));
-      card.append(head, jsonEditor(call, function (next) {
-        if (!next || typeof next !== "object" || Array.isArray(next)) throw new Error("A tool call must be a JSON object.");
-        calls[index] = next; commit();
-      })); group.append(card);
+      if (!call.function || typeof call.function !== "object" || Array.isArray(call.function)) call.function = {};
+      var card = el("div", "tool-call-card"); var head = el("div", "compact-call-head");
+      var id = el("input", "compact-call-id"); id.value = call.id || ""; id.placeholder = "call id"; id.addEventListener("input", function () { call.id = id.value; commit(); });
+      var name = el("input", "compact-call-name"); name.value = call.function.name || ""; name.placeholder = "tool name"; name.addEventListener("input", function () { call.function.name = name.value; commit(); });
+      head.append(el("span", "compact-call-index", "#" + (index + 1)), id, name, button("Remove", "danger-button", function () { calls.splice(index, 1); commit(); IDE.Rendered.render(); }));
+      var originalString = typeof call.function.arguments === "string"; var args;
+      try { args = originalString ? JSON.parse(call.function.arguments || "{}") : call.function.arguments; }
+      catch (_) { args = call.function.arguments; }
+      var argsEditor = el("div", "compact-args-editor");
+      if (args && typeof args === "object" && !Array.isArray(args)) {
+        var argKeys = Object.keys(args);
+        if (!argKeys.length) argsEditor.append(el("span", "empty-arguments", "No arguments"));
+        argKeys.forEach(function (argKey) {
+          var row = el("label", "argument-row"); row.append(el("span", "argument-key", argKey));
+          var argValue = args[argKey]; var input = el(typeof argValue === "object" && argValue !== null ? "textarea" : "input", "argument-value");
+          input.value = typeof argValue === "string" ? argValue : JSON.stringify(argValue); input.spellcheck = false;
+          input.addEventListener("change", function () {
+            var next = Object.assign({}, args);
+            if (typeof argValue === "string") next[argKey] = input.value;
+            else { try { next[argKey] = JSON.parse(input.value); row.classList.remove("invalid"); } catch (_) { row.classList.add("invalid"); return; } }
+            args = next; call.function.arguments = originalString ? JSON.stringify(next) : next; commit();
+          });
+          row.append(input); argsEditor.append(row);
+        });
+      } else {
+        var rawArgs = el("textarea", "argument-value argument-raw"); rawArgs.value = typeof args === "string" ? args : JSON.stringify(args); rawArgs.addEventListener("change", function () { call.function.arguments = rawArgs.value; commit(); }); argsEditor.append(rawArgs);
+      }
+      card.append(head, argsEditor); group.append(card);
     });
     body.append(group);
+  }
+  function toolResultContent(message, body) {
+    var area = expandingArea("tool-result-content", IDE.Json.scalarText(message.content)); area.spellcheck = true;
+    area.placeholder = "Tool result content";
+    area.addEventListener("input", function () { try { message.content = IDE.Json.parseScalarText(area.value, message.content); commit(); } catch (_) {} });
+    body.append(area);
   }
   function contentEditor(message, key, body) {
     var group = el("div", "content-group");
@@ -194,14 +222,22 @@
     body.append(group);
   }
   function messageCard(message, index, messages) {
-    var card = el("article", "message-card");
+    var isToolResult = message && message.role === "tool"; var card = el("article", "message-card" + (isToolResult ? " tool-result-card" : ""));
     var head = el("div", "message-head"); head.append(el("span", "drag-index", "#" + (index + 1)));
     var role = el("input", "role-input"); role.value = message.role === undefined ? "" : String(message.role); role.setAttribute("list", "role-suggestions"); role.placeholder = "role";
     role.addEventListener("input", function () { message.role = role.value; commit(); });
-    head.append(role, el("span", "spacer"), button("Remove message", "danger-button", function () { messages.splice(index, 1); commit(); IDE.Rendered.render(); }));
+    head.append(role);
+    if (isToolResult) {
+      var callId = el("input", "tool-result-id"); callId.value = message.tool_call_id || ""; callId.placeholder = "tool_call_id"; callId.addEventListener("input", function () { message.tool_call_id = callId.value; commit(); });
+      var toolName = el("input", "tool-result-name"); toolName.value = message.name || ""; toolName.placeholder = "tool name"; toolName.addEventListener("input", function () { message.name = toolName.value; commit(); });
+      head.append(callId, toolName);
+    }
+    head.append(el("span", "spacer"), button("Remove message", "danger-button", function () { messages.splice(index, 1); commit(); IDE.Rendered.render(); }));
     var body = el("div", "message-body");
+    if (isToolResult && "content" in message) toolResultContent(message, body);
     Object.keys(message).forEach(function (key) {
-      if (key === "role") return;
+      if (key === "role" || (isToolResult && (key === "tool_call_id" || key === "name" || key === "content"))) return;
+      if (key === "content" && Array.isArray(message.tool_calls) && (message.content === null || message.content === "")) return;
       if (key === "content" || key === "reasoning_content") contentEditor(message, key, body);
       else if (key === "tool_calls" && Array.isArray(message[key])) toolCallsEditor(message, key, body);
       else {
@@ -213,7 +249,7 @@
     });
     var addFields = el("div", "content-group");
     if (!("content" in message)) addFields.append(button("+ content", "mini-button", function () { message.content = ""; commit(); IDE.Rendered.render(); }));
-    if (!("reasoning_content" in message)) addFields.append(button("+ reasoning_content", "mini-button", function () { message.reasoning_content = ""; commit(); IDE.Rendered.render(); }));
+    if (!("reasoning_content" in message) && !Array.isArray(message.tool_calls)) addFields.append(button("+ reasoning_content", "mini-button", function () { message.reasoning_content = ""; commit(); IDE.Rendered.render(); }));
     if (addFields.childNodes.length) body.append(addFields);
     card.append(head, body); return card;
   }
