@@ -80,16 +80,24 @@
       <div class="dialog-head"><div><span class="eyebrow">LOCAL SETTINGS</span><h2>Connections</h2></div><button class="icon-button" type="button" data-close-settings aria-label="Close">×</button></div>
       <label>llama-server base URL<input id="base-url" type="url" placeholder="http://localhost:3333" autocomplete="off"></label>
       <p class="field-help">Stored in this browser only. It is never inserted into or removed from the request document.</p>
-      <label>MCP server<input id="mcp-url" type="url" placeholder="Not used in this MVP" autocomplete="off" disabled></label>
-      <label class="toggle-row"><span><strong>Tools</strong><small>MCP tool discovery is planned for a later version.</small></span><input id="tools-toggle" type="checkbox" disabled></label>
+      <div class="cors-warning"><strong>CORS required</strong><span>This IDE connects from your browser. Ensure both llama-server and the MCP server allow the IDE origin and all required methods/headers. For local-only development, enable fully permissive CORS on both servers.</span></div>
+      <section class="mcp-manager">
+        <div class="mcp-title"><div><span class="eyebrow">MCP</span><strong id="mcp-status">Not connected</strong></div><button class="secondary" id="mcp-connect" type="button">Discover tools</button></div>
+        <label>MCP Streamable HTTP URL<input id="mcp-url" type="url" placeholder="http://localhost:5555/mcp" autocomplete="off"></label>
+        <label>Maximum model/tool turns<input id="tool-loop-limit" type="number" min="1" max="64" step="1"></label>
+        <p class="mcp-explanation">Discover appends new MCP tool definitions directly to <code>request.tools</code> and appends server instructions as the next text part of the system message. Both become normal editable request data; nothing is injected when sending.</p>
+        <p class="field-help">When the model returns <code>tool_calls</code>, the IDE calls this MCP server, appends assistant/tool messages to the working request, and continues. The working request is always the exact payload sent to llama-server.</p>
+      </section>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-settings>Cancel</button><button class="primary" type="submit">Save settings</button></div>
     </form>
   </dialog>
 
+  <script src="js/mcp-sdk.js"></script>
   <script src="js/state.js"></script>
   <script src="js/json.js"></script>
   <script src="js/rendered.js"></script>
   <script src="js/response.js"></script>
+  <script src="js/mcp.js"></script>
   <script src="js/server.js"></script>
   <script src="js/files.js"></script>
   <script src="js/app.js"></script>
