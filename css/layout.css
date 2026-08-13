@@ -29,5 +29,7 @@
 .side-tabs button.active { color: var(--green); border-bottom-color: var(--green); }
 .side-view { display: none; }
 .side-view.active { display: block; }
+.runtime-view { display: none; }
+.runtime-view.active { display: block; }
 @media (max-width: 900px) { .workspace { grid-template-columns: minmax(500px, 1fr) 280px; } }
 @media (max-width: 900px) { .response-panel { right: 280px; } }

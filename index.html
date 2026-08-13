@@ -66,19 +66,22 @@
 
     <aside class="side-column">
       <section class="side-panel inspector-panel">
-        <nav class="side-tabs" aria-label="Request and model details">
-          <button class="active" data-side-view="fields">Request fields</button>
-          <button data-side-view="model">Model properties</button>
-        </nav>
+        <nav class="side-tabs" aria-label="Request details"><button class="active">Request fields</button></nav>
         <div class="side-view active" id="fields-side-view"><div id="request-fields-host"></div></div>
-        <div class="side-view" id="model-side-view">
-        <div class="panel-head"><div><span class="eyebrow">SERVER</span><h2>Model properties</h2></div><button class="icon-button" id="refresh-model" title="Refresh">↻</button></div>
-        <div class="kv-list" id="model-properties"><p class="empty-state">Connect to a llama-server to inspect its properties.</p></div>
-        </div>
       </section>
       <section class="side-panel slots-panel">
-        <div class="panel-head"><div><span class="eyebrow">RUNTIME</span><h2>Slots</h2></div><button class="icon-button" id="refresh-slots" title="Refresh">↻</button></div>
-        <div id="slots-status"><p class="empty-state">No slot data loaded.</p></div>
+        <nav class="side-tabs runtime-tabs" aria-label="Runtime views">
+          <button class="active" data-runtime-view="slots">Slots</button>
+          <button data-runtime-view="models">Model manager</button>
+        </nav>
+        <div class="runtime-view active" id="slots-runtime-view">
+          <div class="panel-head"><div><span class="eyebrow">RUNTIME</span><h2>Slots</h2></div><button class="icon-button" id="refresh-slots" title="Refresh">↻</button></div>
+          <div id="slots-status"><p class="empty-state">No slot data loaded.</p></div>
+        </div>
+        <div class="runtime-view" id="models-runtime-view">
+          <div class="panel-head"><div><span class="eyebrow">RUNTIME</span><h2>Models</h2></div><button class="icon-button" id="refresh-models" title="Refresh">↻</button></div>
+          <div id="models-status"><p class="empty-state">No model data loaded.</p></div>
+        </div>
       </section>
     </aside>
   </main>
@@ -100,6 +103,12 @@
       </section>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-settings>Cancel</button><button class="primary" type="submit">Save settings</button></div>
     </form>
+  </dialog>
+
+  <dialog id="model-properties-dialog">
+    <div class="dialog-head"><div><span class="eyebrow">MODEL</span><h2 id="model-properties-title">Model properties</h2></div><button class="icon-button" type="button" data-close-model-properties aria-label="Close">×</button></div>
+    <div class="kv-list model-properties-popup" id="model-properties"><p class="empty-state">Select a model to inspect its properties.</p></div>
+    <div class="dialog-actions"><button class="secondary" type="button" data-close-model-properties>Close</button></div>
   </dialog>
 
   <script src="js/mcp-sdk.js"></script>

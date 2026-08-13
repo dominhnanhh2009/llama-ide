@@ -33,29 +33,65 @@
       list.append(option);
     });
   }
+  function statusValue(model) {
+    var status = model && model.status;
+    return String(status && typeof status === "object" ? status.value || status.status || "unknown" : status || "unknown").toLowerCase();
+  }
+  function usableModels(models) { return models.filter(function (model) { return model.id !== "default"; }); }
+  function isLoaded(model) { var status = statusValue(model); return status === "loaded" || status === "sleeping"; }
   async function loadCatalog(selectFirst) {
     var catalog = await request("/v1/models");
-    var models = catalog && Array.isArray(catalog.data) ? catalog.data.filter(function (model) { return model && typeof model.id === "string"; }) : [];
+    var models = usableModels(catalog && Array.isArray(catalog.data) ? catalog.data.filter(function (model) { return model && typeof model.id === "string"; }) : []);
     updateModelSuggestions(models);
     if (selectFirst) {
-      var nextModel = models.length ? models[0].id : "";
+      var loaded = models.filter(isLoaded);
+      var nextModel = loaded.length ? loaded[Math.floor(Math.random() * loaded.length)].id : "";
       if (IDE.state.document.model !== nextModel) { IDE.state.document.model = nextModel; IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.setDirty(true); }
     }
     return models;
   }
-  async function modelProperties(skipCatalog) {
-    if (!skipCatalog) await loadCatalog(false);
-    if (!currentModel()) throw new Error("The request document has no model field. Add one to inspect model properties.");
-    return request(withModel("/props"));
+  async function modelProperties(model) {
+    return request("/props?model=" + encodeURIComponent(model));
   }
   IDE.Server = {
-    loadModel: async function (skipCatalog) {
+    showModelProperties: async function (model) {
+      var dialog = document.getElementById("model-properties-dialog");
+      document.getElementById("model-properties-title").textContent = model;
       var host = document.getElementById("model-properties"); host.innerHTML = '<p class="empty-state">Loading…</p>';
+      dialog.showModal();
       try {
-        var data = await modelProperties(skipCatalog); var rows = []; flatten(data, "", rows); host.replaceChildren();
+        var data = await modelProperties(model); var rows = []; flatten(data, "", rows); host.replaceChildren();
         rows.forEach(function (pair) { var row = document.createElement("div"); row.className = "kv-row"; var k = document.createElement("span"); k.textContent = pair[0]; var v = document.createElement("span"); v.textContent = pair[1]; row.append(k, v); host.append(row); });
-        IDE.App.connection(true, "Connected");
-      } catch (error) { host.innerHTML = '<p class="empty-state"></p>'; host.firstChild.textContent = error.message; IDE.App.connection(false, "Connection failed"); }
+      } catch (error) { host.innerHTML = '<p class="empty-state"></p>'; host.firstChild.textContent = error.message; }
+    },
+    loadModels: async function () {
+      var host = document.getElementById("models-status"); host.innerHTML = '<p class="empty-state">Loading…</p>';
+      try {
+        var models = await loadCatalog(false); host.replaceChildren();
+        if (!models.length) { host.innerHTML = '<p class="empty-state">No models available.</p>'; return; }
+        models.forEach(function (model) {
+          var status = statusValue(model), loaded = isLoaded(model);
+          var row = document.createElement("div"); row.className = "model-row";
+          var summary = document.createElement("div"); summary.className = "model-name"; summary.textContent = model.id;
+          var state = document.createElement("span"); state.className = "model-state " + status; state.textContent = status; summary.append(state);
+          var info = document.createElement("button"); info.className = "icon-button model-info-button"; info.type = "button"; info.textContent = "i"; info.title = "Show model properties";
+          info.addEventListener("click", function () { IDE.App.safe(function () { return IDE.Server.showModelProperties(model.id); }); });
+          var action = document.createElement("button"); action.className = loaded ? "danger-button model-action" : "secondary model-action"; action.type = "button"; action.textContent = loaded ? "Unload" : "Load";
+          action.disabled = status === "loading" || status === "unloading";
+          action.addEventListener("click", function () { IDE.App.safe(function () { return IDE.Server.setModelLoaded(model.id, !loaded); }); });
+          row.append(summary, info, action); host.append(row);
+        });
+      } catch (error) { host.innerHTML = '<p class="empty-state"></p>'; host.firstChild.textContent = error.message; }
+    },
+    setModelLoaded: async function (model, load) {
+      await request(load ? "/models/load" : "/models/unload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: model }) });
+      await IDE.Server.loadModels();
+      if (load && !currentModel()) { IDE.state.document.model = model; IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.setDirty(true); IDE.App.refreshAll(); }
+      if (!load && currentModel() === model) {
+        var models = await loadCatalog(false), loaded = models.filter(isLoaded);
+        IDE.state.document.model = loaded.length ? loaded[Math.floor(Math.random() * loaded.length)].id : ""; IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.setDirty(true); IDE.App.refreshAll();
+      }
+      await IDE.Server.loadSlots();
     },
     loadSlots: async function () {
       var host = document.getElementById("slots-status"); host.innerHTML = '<p class="empty-state">Loading…</p>';
@@ -76,10 +112,10 @@
         var health = await request("/health");
         var models = await loadCatalog(true);
         IDE.App.refreshAll();
-        await Promise.all([IDE.Server.loadModel(true), IDE.Server.loadSlots()]);
+        await Promise.all([IDE.Server.loadModels(), IDE.Server.loadSlots()]);
         var healthLabel = health && typeof health === "object" ? (health.status || health.message || "healthy") : (health || "healthy");
         IDE.App.connection(true, "Connected · " + models.length + " model" + (models.length === 1 ? "" : "s") + " · " + healthLabel);
-        IDE.App.notice(models.length ? "Connected to llama-server. Selected " + models[0].id + "." : "Connected to llama-server, but no models were returned.");
+        IDE.App.notice(currentModel() ? "Connected to llama-server. Selected loaded model " + currentModel() + "." : "Connected to llama-server, but no loaded models were returned.");
       } finally { button.disabled = false; button.classList.remove("busy"); }
     },
     applyTemplate: async function () {

@@ -35,13 +35,18 @@
   document.querySelectorAll("[data-menu]").forEach(function (button) { button.addEventListener("click", function (event) { event.stopPropagation(); var menu = document.getElementById(button.dataset.menu); var open = !menu.classList.contains("open"); document.querySelectorAll(".menu").forEach(function (m) { m.classList.remove("open"); }); menu.classList.toggle("open", open); button.classList.toggle("open", open); }); });
   document.addEventListener("click", function () { document.querySelectorAll(".menu").forEach(function (m) { m.classList.remove("open"); }); });
   document.querySelectorAll(".view-tabs button").forEach(function (b) { b.addEventListener("click", function () { activateView(b.dataset.view); }); });
-  document.querySelectorAll(".side-tabs button").forEach(function (b) { b.addEventListener("click", function () {
+  document.querySelectorAll("[data-side-view]").forEach(function (b) { b.addEventListener("click", function () {
     document.querySelectorAll(".side-tabs button").forEach(function (button) { button.classList.toggle("active", button === b); });
     document.querySelectorAll(".side-view").forEach(function (view) { view.classList.toggle("active", view.id === b.dataset.sideView + "-side-view"); });
   }); });
+  document.querySelectorAll("[data-runtime-view]").forEach(function (b) { b.addEventListener("click", function () {
+    document.querySelectorAll("[data-runtime-view]").forEach(function (button) { button.classList.toggle("active", button === b); });
+    document.querySelectorAll(".runtime-view").forEach(function (view) { view.classList.toggle("active", view.id === b.dataset.runtimeView + "-runtime-view"); });
+    if (b.dataset.runtimeView === "models") IDE.Server.loadModels();
+  }); });
   document.getElementById("response-toggle").addEventListener("click", function () { IDE.state.responseOpen = !IDE.state.responseOpen; IDE.Response.render(); });
   document.querySelectorAll("[data-action]").forEach(function (b) { b.addEventListener("click", function () { var action = b.dataset.action; if (action === "settings") { document.getElementById("base-url").value = IDE.state.settings.baseUrl; IDE.MCP.open(); } else if (action === "new") IDE.Files.newFile(); else if (action === "open") IDE.App.safe(IDE.Files.open); else if (action === "save") IDE.App.safe(IDE.Files.save); else if (action === "save-as") IDE.App.safe(IDE.Files.saveAs); }); });
-  document.getElementById("settings-form").addEventListener("submit", function (event) { event.preventDefault(); IDE.state.settings.baseUrl = document.getElementById("base-url").value.trim(); IDE.MCP.captureForm(); localStorage.setItem("llamaIde.baseUrl", IDE.state.settings.baseUrl); document.getElementById("settings-dialog").close(); IDE.Server.loadModel(); IDE.Server.loadSlots(); });
+  document.getElementById("settings-form").addEventListener("submit", function (event) { event.preventDefault(); IDE.state.settings.baseUrl = document.getElementById("base-url").value.trim(); IDE.MCP.captureForm(); localStorage.setItem("llamaIde.baseUrl", IDE.state.settings.baseUrl); document.getElementById("settings-dialog").close(); IDE.Server.loadModels(); IDE.Server.loadSlots(); });
   document.getElementById("mcp-connect").addEventListener("click", function () { IDE.App.safe(IDE.MCP.connect); });
   document.getElementById("connect-server-button").addEventListener("click", function () { IDE.App.safe(IDE.Server.connect); });
   document.getElementById("use-mcp-button").addEventListener("click", function () {
@@ -60,7 +65,8 @@
   document.getElementById("raw-editor").addEventListener("input", function () { IDE.state.rawText = this.value; IDE.Json.highlight(document.getElementById("raw-highlight"), this.value); IDE.setDirty(true); try { IDE.Json.parse(this.value); document.getElementById("json-status").textContent = "Valid JSON"; } catch (_) { document.getElementById("json-status").textContent = "Invalid JSON"; } });
   document.getElementById("raw-editor").addEventListener("scroll", function () { var highlight = document.getElementById("raw-highlight"); highlight.scrollTop = this.scrollTop; highlight.scrollLeft = this.scrollLeft; });
   document.getElementById("format-button").addEventListener("click", function () { IDE.App.safe(async function () { if (IDE.state.activeView === "raw") { IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value); } IDE.state.rawText = IDE.Json.pretty(IDE.state.document); syncRaw(); IDE.setDirty(true); }); });
-  document.getElementById("refresh-prompt").addEventListener("click", IDE.Server.applyTemplate); document.getElementById("refresh-model").addEventListener("click", IDE.Server.loadModel); document.getElementById("refresh-slots").addEventListener("click", IDE.Server.loadSlots);
+  document.getElementById("refresh-prompt").addEventListener("click", IDE.Server.applyTemplate); document.getElementById("refresh-models").addEventListener("click", IDE.Server.loadModels); document.getElementById("refresh-slots").addEventListener("click", IDE.Server.loadSlots);
+  document.querySelectorAll("[data-close-model-properties]").forEach(function (button) { button.addEventListener("click", function () { document.getElementById("model-properties-dialog").close(); }); });
   document.getElementById("run-button").addEventListener("click", function () {
     var runButton = document.getElementById("run-button"); var icon = runButton.querySelector(".action-icon"); var label = runButton.querySelector(".action-label");
     IDE.App.safe(async function () {

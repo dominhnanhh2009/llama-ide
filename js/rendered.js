@@ -480,7 +480,7 @@
       if (!list) { list = el("datalist"); list.id = listId; suggestions[key].forEach(function (item) { var option = el("option"); option.value = item; list.append(option); }); document.body.append(list); }
       input.setAttribute("list", listId);
     }
-    input.addEventListener("change", function () { try { IDE.state.document[key] = IDE.Json.parseScalarText(input.value, value); card.classList.remove("invalid"); commit(); if (key === "model") { IDE.Server.loadModel(); IDE.Server.loadSlots(); } } catch (error) { card.classList.add("invalid"); IDE.App.notice(key + ": " + error.message); } });
+    input.addEventListener("change", function () { try { IDE.state.document[key] = IDE.Json.parseScalarText(input.value, value); card.classList.remove("invalid"); commit(); if (key === "model") IDE.Server.loadSlots(); } catch (error) { card.classList.add("invalid"); IDE.App.notice(key + ": " + error.message); } });
     card.append(input); return card;
   }
   function renderRequestFields(host, data) {
