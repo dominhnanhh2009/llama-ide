@@ -47,7 +47,7 @@
       <div class="view active" id="rendered-view"><div id="rendered-editor"></div></div>
       <div class="view" id="raw-view">
         <div class="editor-toolbar"><span>OPENAI API REQUEST · JSON</span><span id="json-status">Valid JSON</span></div>
-        <textarea id="raw-editor" class="code-editor" spellcheck="false" aria-label="Raw JSON request"></textarea>
+        <div class="raw-json-editor"><pre id="raw-highlight" class="raw-json-highlight" aria-hidden="true"></pre><textarea id="raw-editor" class="code-editor raw-json-input" spellcheck="false" aria-label="Raw JSON request"></textarea></div>
       </div>
       <div class="view" id="prompt-view">
         <div class="editor-toolbar"><span>APPLY-TEMPLATE RESPONSE · READ ONLY</span><button class="text-button" id="refresh-prompt">Refresh</button></div>

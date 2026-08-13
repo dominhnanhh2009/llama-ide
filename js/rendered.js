@@ -12,7 +12,8 @@
   }
   function autoSize(area) {
     area.style.height = "0";
-    area.style.height = Math.max(area.scrollHeight + 2, 78) + "px";
+    var minimum = area.classList.contains("tool-description") ? 40 : 78;
+    area.style.height = Math.max(area.scrollHeight + 2, minimum) + "px";
   }
   function expandingArea(className, value) {
     var area = el("textarea", className);
@@ -20,6 +21,19 @@
     area.addEventListener("input", function () { autoSize(area); });
     requestAnimationFrame(function () { autoSize(area); });
     return area;
+  }
+  function jsonEditor(value, onChange) {
+    var frame = el("div", "json-editor"); var highlight = el("pre", "json-highlight");
+    var area = el("textarea", "json-input"); area.spellcheck = false; area.value = IDE.Json.pretty(value);
+    function paint() { IDE.Json.highlight(highlight, area.value); }
+    function size() { area.style.height = "0"; area.style.height = Math.max(area.scrollHeight + 2, 92) + "px"; highlight.style.height = area.style.height; }
+    area.addEventListener("input", function () { paint(); size(); frame.classList.remove("invalid"); });
+    area.addEventListener("scroll", function () { highlight.scrollTop = area.scrollTop; highlight.scrollLeft = area.scrollLeft; });
+    area.addEventListener("change", function () {
+      try { onChange(JSON.parse(area.value)); frame.classList.remove("invalid"); }
+      catch (error) { frame.classList.add("invalid"); IDE.App.notice(error.message); }
+    });
+    frame.append(highlight, area); paint(); requestAnimationFrame(size); return frame;
   }
   function commit() { IDE.state.rawText = IDE.Json.pretty(IDE.state.document); IDE.setDirty(true); }
   function imageUrl(part) {
@@ -134,71 +148,16 @@
     });
     card.append(area);
   }
-  function valueType(value) {
-    if (value === null) return "null";
-    if (Array.isArray(value)) return "array";
-    return typeof value === "object" ? "object" : typeof value === "number" ? "number" : typeof value === "boolean" ? "boolean" : "string";
-  }
-  function defaultValue(type) {
-    return type === "object" ? {} : type === "array" ? [] : type === "number" ? 0 : type === "boolean" ? false : type === "null" ? null : "";
-  }
-  function structuredEditor(initialValue, onChange) {
-    var root = el("div", "structured-editor"); var value = initialValue;
-    function changed(next) { value = next; onChange(next); draw(); }
-    function node(current, update) {
-      var box = el("div"); var head = el("div", "structured-head"); var type = el("select", "structured-type");
-      ["string", "number", "boolean", "null", "object", "array"].forEach(function (name) { var option = el("option", "", name); option.value = name; type.append(option); });
-      type.value = valueType(current); type.addEventListener("change", function () { update(defaultValue(type.value)); }); head.append(type); box.append(head);
-      var kind = valueType(current);
-      if (kind === "object") {
-        Object.keys(current).forEach(function (key) {
-          var entry = el("div", "structured-entry"); var entryHead = el("div", "structured-entry-head"); var keyInput = el("input", "structured-key"); keyInput.value = key;
-          keyInput.addEventListener("change", function () { var nextKey = keyInput.value.trim(); if (!nextKey || nextKey === key) return; var next = Object.assign({}, current); next[nextKey] = next[key]; delete next[key]; update(next); });
-          entryHead.append(keyInput, button("Remove", "danger-button", function () { var next = Object.assign({}, current); delete next[key]; update(next); }));
-          entry.append(entryHead, node(current[key], function (nextValue) { var next = Object.assign({}, current); next[key] = nextValue; update(next); })); box.append(entry);
-        });
-        box.append(button("+ Property", "mini-button", function () { var next = Object.assign({}, current), index = 1, key = "field"; while (key in next) { index += 1; key = "field" + index; } next[key] = ""; update(next); }));
-      } else if (kind === "array") {
-        current.forEach(function (item, index) {
-          var entry = el("div", "structured-entry"); var entryHead = el("div", "structured-entry-head"); entryHead.append(el("span", "drag-index", "#" + (index + 1)), button("Remove", "danger-button", function () { var next = current.slice(); next.splice(index, 1); update(next); }));
-          entry.append(entryHead, node(item, function (nextValue) { var next = current.slice(); next[index] = nextValue; update(next); })); box.append(entry);
-        });
-        box.append(button("+ Item", "mini-button", function () { update(current.concat([""])); }));
-      } else if (kind === "boolean") {
-        var boolLabel = el("label", "structured-boolean"); var checkbox = el("input"); checkbox.type = "checkbox"; checkbox.checked = current; checkbox.addEventListener("change", function () { update(checkbox.checked); }); boolLabel.append(checkbox, el("span", "", current ? "true" : "false")); box.append(boolLabel);
-      } else if (kind === "null") box.append(el("span", "empty-state", "null"));
-      else {
-        var input = el("input", "structured-scalar"); input.type = kind === "number" ? "number" : "text"; input.value = current;
-        input.addEventListener("change", function () { update(kind === "number" ? Number(input.value) : input.value); }); box.append(input);
-      }
-      return box;
-    }
-    function draw() { root.replaceChildren(node(value, changed)); }
-    draw(); return root;
-  }
-  function replaceExtraFields(target, reserved, next) {
-    Object.keys(target).forEach(function (key) { if (reserved.indexOf(key) === -1) delete target[key]; });
-    Object.keys(next).forEach(function (key) { target[key] = next[key]; });
-  }
   function toolCallsEditor(message, key, body) {
     var group = el("div", "content-group"); var calls = message[key]; var title = el("div", "field-label"); title.append(el("span", "", key), button("+ Tool call", "mini-button", function () { calls.push({ id: "", type: "function", function: { name: "", arguments: "{}" } }); commit(); IDE.Rendered.render(); })); group.append(title);
     calls.forEach(function (call, index) {
       if (!call || typeof call !== "object" || Array.isArray(call)) call = calls[index] = { id: "", type: "function", function: { name: "", arguments: "{}" } };
-      if (!call.function || typeof call.function !== "object" || Array.isArray(call.function)) call.function = {};
-      var card = el("div", "tool-call-card"); var head = el("div", "tool-call-head");
-      var id = el("input"); id.placeholder = "call id"; id.value = call.id || ""; id.addEventListener("input", function () { call.id = id.value; commit(); });
-      var type = el("input"); type.placeholder = "type"; type.value = call.type || ""; type.addEventListener("input", function () { call.type = type.value; commit(); });
-      var name = el("input"); name.placeholder = "function name"; name.value = call.function.name || ""; name.addEventListener("input", function () { call.function.name = name.value; commit(); });
-      head.append(id, type, name, button("Remove", "danger-button", function () { calls.splice(index, 1); commit(); IDE.Rendered.render(); }));
-      var callBody = el("div", "tool-call-body"); var originalString = typeof call.function.arguments === "string"; var args;
-      try { args = originalString ? JSON.parse(call.function.arguments || "{}") : call.function.arguments; }
-      catch (_) { args = { unparsed_arguments: call.function.arguments }; }
-      callBody.append(toolField("Arguments", structuredEditor(args, function (next) { call.function.arguments = originalString ? JSON.stringify(next) : next; commit(); }), "full-width"));
-      var callExtras = {}; Object.keys(call).forEach(function (field) { if (["id", "type", "function"].indexOf(field) === -1) callExtras[field] = call[field]; });
-      var fnExtras = {}; Object.keys(call.function).forEach(function (field) { if (["name", "arguments"].indexOf(field) === -1) fnExtras[field] = call.function[field]; });
-      callBody.append(toolField("Additional call fields", structuredEditor(callExtras, function (next) { replaceExtraFields(call, ["id", "type", "function"], next); commit(); }), "full-width"));
-      callBody.append(toolField("Additional function fields", structuredEditor(fnExtras, function (next) { replaceExtraFields(call.function, ["name", "arguments"], next); commit(); }), "full-width"));
-      card.append(head, callBody); group.append(card);
+      var card = el("div", "tool-call-card"); var head = el("div", "json-card-head");
+      head.append(el("span", "drag-index", "CALL " + (index + 1)), button("Remove", "danger-button", function () { calls.splice(index, 1); commit(); IDE.Rendered.render(); }));
+      card.append(head, jsonEditor(call, function (next) {
+        if (!next || typeof next !== "object" || Array.isArray(next)) throw new Error("A tool call must be a JSON object.");
+        calls[index] = next; commit();
+      })); group.append(card);
     });
     body.append(group);
   }
@@ -271,38 +230,80 @@
         if (!Array.isArray(IDE.state.document.tools)) IDE.state.document.tools = [];
         IDE.state.document.tools.push(tool);
       } else IDE.state.disabledTools.push(tool);
-      commit(); IDE.Rendered.render();
+      commit(); showToolsDialog();
     });
-    head.append(enabledLabel, el("span", "drag-index", "#" + (index + 1)), el("span", "spacer"), button("Remove tool", "danger-button", function () { collection.splice(index, 1); commit(); IDE.Rendered.render(); }));
-    var body = el("div", "tool-body");
-    if (!tool || typeof tool !== "object" || Array.isArray(tool)) {
-      body.append(toolField("Tool value", structuredEditor(tool, function (next) { collection[index] = next; commit(); }), "full-width")); card.append(head, body); return card;
-    }
-    var fn = tool.function && typeof tool.function === "object" && !Array.isArray(tool.function) ? tool.function : {};
-    function ensureFunction() { if (!tool.function || typeof tool.function !== "object" || Array.isArray(tool.function)) tool.function = {}; return tool.function; }
+    if (!tool || typeof tool !== "object" || Array.isArray(tool)) tool = collection[index] = { type: "function", function: { name: "", description: "", parameters: { type: "object", properties: {} } } };
+    if (!tool.function || typeof tool.function !== "object" || Array.isArray(tool.function)) tool.function = {};
+    var fn = tool.function;
+    if (!fn.parameters || typeof fn.parameters !== "object" || Array.isArray(fn.parameters)) fn.parameters = { type: "object", properties: {} };
+    if (!fn.parameters.properties || typeof fn.parameters.properties !== "object" || Array.isArray(fn.parameters.properties)) fn.parameters.properties = {};
+    if (!Array.isArray(fn.parameters.required)) fn.parameters.required = [];
+    var summary = el("strong", "tool-summary", fn.name || "Unnamed tool");
+    head.append(enabledLabel, el("span", "drag-index", "#" + (index + 1)), summary, el("span", "spacer"), button("Remove", "danger-button", function () { collection.splice(index, 1); commit(); showToolsDialog(); }));
+    var body = el("div", "tool-config-body");
     var type = el("input"); type.value = tool.type === undefined ? "" : String(tool.type); type.addEventListener("input", function () { tool.type = type.value; commit(); });
-    var name = el("input"); name.value = fn.name === undefined ? "" : String(fn.name); name.addEventListener("input", function () { ensureFunction().name = name.value; commit(); });
-    var description = expandingArea("", fn.description === undefined ? "" : String(fn.description)); description.addEventListener("input", function () { ensureFunction().description = description.value; commit(); });
-    var parameters = structuredEditor(fn.parameters === undefined ? { type: "object", properties: {} } : fn.parameters, function (next) { ensureFunction().parameters = next; commit(); });
-    var toolExtras = {}; Object.keys(tool).forEach(function (field) { if (["type", "function"].indexOf(field) === -1) toolExtras[field] = tool[field]; });
-    var fnExtras = {}; Object.keys(fn).forEach(function (field) { if (["name", "description", "parameters"].indexOf(field) === -1) fnExtras[field] = fn[field]; });
-    body.append(toolField("Type", type), toolField("Function name", name), toolField("Description", description, "full-width"), toolField("Parameters", parameters, "full-width"));
-    body.append(toolField("Additional tool fields", structuredEditor(toolExtras, function (next) { replaceExtraFields(tool, ["type", "function"], next); commit(); }), "full-width"));
-    body.append(toolField("Additional function fields", structuredEditor(fnExtras, function (next) { replaceExtraFields(ensureFunction(), ["name", "description", "parameters"], next); commit(); }), "full-width"));
-    card.append(head, body); return card;
+    var name = el("input"); name.value = fn.name === undefined ? "" : String(fn.name); name.placeholder = "Tool name"; name.addEventListener("input", function () { fn.name = name.value; summary.textContent = name.value || "Unnamed tool"; commit(); });
+    var description = expandingArea("tool-description", fn.description === undefined ? "" : String(fn.description)); description.placeholder = "What does this tool do?"; description.addEventListener("input", function () { fn.description = description.value; commit(); });
+    body.append(toolField("Type", type), toolField("Name", name), toolField("Description", description, "full-width"));
+    var parameters = el("section", "parameters-config full-width");
+    var parameterHead = el("div", "parameters-head"); parameterHead.append(el("div", "field-label", "Parameters"), button("+ Parameter", "mini-button", function () {
+      var n = 1, key = "parameter"; while (key in fn.parameters.properties) { n += 1; key = "parameter" + n; }
+      fn.parameters.properties[key] = { type: "string", description: "" }; commit(); showToolsDialog();
+    })); parameters.append(parameterHead);
+    var propertyNames = Object.keys(fn.parameters.properties);
+    if (!propertyNames.length) parameters.append(el("p", "empty-state parameter-empty", "This tool has no parameters."));
+    propertyNames.forEach(function (propertyName) {
+      var schema = fn.parameters.properties[propertyName];
+      if (!schema || typeof schema !== "object" || Array.isArray(schema)) schema = fn.parameters.properties[propertyName] = { type: String(schema || "string"), description: "" };
+      var row = el("div", "parameter-row"); var nameWrap = el("label", "parameter-name");
+      var required = fn.parameters.required.indexOf(propertyName) !== -1;
+      var nameInput = el("input"); nameInput.value = propertyName; nameInput.placeholder = "Parameter name";
+      var star = el("span", "required-star" + (required ? " active" : ""), "*"); nameWrap.append(nameInput, star);
+      var typeInput = el("input"); typeInput.value = schema.type === undefined ? "" : String(schema.type); typeInput.placeholder = "type";
+      var descInput = el("textarea", "parameter-description"); descInput.value = schema.description === undefined ? "" : String(schema.description); descInput.placeholder = "Parameter description";
+      var requiredLabel = el("label", "parameter-required"); var requiredInput = el("input"); requiredInput.type = "checkbox"; requiredInput.checked = required; requiredLabel.append(requiredInput, el("span", "", "Required"));
+      nameInput.addEventListener("change", function () {
+        var nextName = nameInput.value.trim(); if (!nextName || nextName === propertyName || nextName in fn.parameters.properties) { nameInput.value = propertyName; return; }
+        fn.parameters.properties[nextName] = schema; delete fn.parameters.properties[propertyName];
+        var requiredIndex = fn.parameters.required.indexOf(propertyName); if (requiredIndex !== -1) fn.parameters.required[requiredIndex] = nextName;
+        commit(); showToolsDialog();
+      });
+      typeInput.addEventListener("input", function () { schema.type = typeInput.value; commit(); });
+      descInput.addEventListener("input", function () { schema.description = descInput.value; commit(); });
+      requiredInput.addEventListener("change", function () {
+        var at = fn.parameters.required.indexOf(propertyName);
+        if (requiredInput.checked && at === -1) fn.parameters.required.push(propertyName);
+        if (!requiredInput.checked && at !== -1) fn.parameters.required.splice(at, 1);
+        star.classList.toggle("active", requiredInput.checked); commit();
+      });
+      row.append(nameWrap, typeInput, descInput, requiredLabel, button("Remove", "danger-button", function () {
+        delete fn.parameters.properties[propertyName]; var at = fn.parameters.required.indexOf(propertyName); if (at !== -1) fn.parameters.required.splice(at, 1); commit(); showToolsDialog();
+      })); parameters.append(row);
+    });
+    body.append(parameters); card.append(head, body); return card;
   }
   function renderTools(root, data) {
     var tools = Array.isArray(data.tools) ? data.tools : null; var disabled = IDE.state.disabledTools;
     var total = (tools ? tools.length : 0) + disabled.length;
     var title = el("div", "section-title"); title.append(el("h2", "", "Tools"), el("span", "count", (tools ? tools.length : 0) + " ENABLED · " + total + " TOTAL")); root.append(title);
     if (!tools && data.tools !== undefined) {
-      var invalidCard = el("div", "field-card invalid"); invalidCard.append(el("div", "field-label", "tools must be an array"), structuredEditor(data.tools, function (next) { data.tools = next; commit(); IDE.Rendered.render(); })); root.append(invalidCard);
+      var invalidCard = el("div", "field-card invalid"); invalidCard.append(el("div", "field-label", "Tools must be an array"), el("p", "empty-state", "Fix the tools value in Raw request before configuring it here.")); root.append(invalidCard);
     }
     else {
-      (tools || []).forEach(function (tool, index) { root.append(toolCard(tool, index, tools, true)); });
-      disabled.forEach(function (tool, index) { root.append(toolCard(tool, index, disabled, false)); });
-      root.append(button("+ Add tool", "secondary", function () { if (!Array.isArray(data.tools)) data.tools = []; data.tools.push({ type: "function", function: { name: "", description: "", parameters: { type: "object", properties: {} } } }); commit(); IDE.Rendered.render(); }));
+      var grid = el("div", "tools-grid");
+      (tools || []).forEach(function (tool, index) { grid.append(toolCard(tool, index, tools, true)); });
+      disabled.forEach(function (tool, index) { grid.append(toolCard(tool, index, disabled, false)); });
+      root.append(grid);
+      root.append(button("+ Add tool", "secondary", function () { if (!Array.isArray(data.tools)) data.tools = []; data.tools.push({ type: "function", function: { name: "", description: "", parameters: { type: "object", properties: {} } } }); commit(); showToolsDialog(); }));
     }
+  }
+  function showToolsDialog() {
+    var previous = document.getElementById("tools-dialog"); if (previous) previous.remove();
+    var dialog = el("dialog", "tools-dialog"); dialog.id = "tools-dialog";
+    var head = el("div", "dialog-head"); var heading = el("div"); heading.append(el("span", "eyebrow", "REQUEST TOOLS"), el("h2", "", "Configure tools"));
+    head.append(heading, button("×", "icon-button", function () { dialog.close(); }));
+    var content = el("div", "tools-dialog-content"); renderTools(content, IDE.state.document);
+    dialog.append(head, content); document.body.append(dialog); dialog.showModal();
   }
   function topField(key, value) {
     var card = el("div", "field-card"); card.append(el("div", "field-label", key));
@@ -312,7 +313,8 @@
       thinking_budget_tokens: ["0", "256", "512", "1024", "2048", "-1"], max_tokens: ["256", "512", "1024", "2048", "4096", "-1"]
     };
     var isCompact = key === "model" || suggestions[key];
-    var input = isCompact ? el("input", "field-input") : expandingArea("json-value", IDE.Json.scalarText(value));
+    var input = isCompact ? el("input", "field-input") : jsonEditor(value, function (next) { IDE.state.document[key] = next; card.classList.remove("invalid"); commit(); });
+    if (!isCompact) { card.append(input); return card; }
     input.value = IDE.Json.scalarText(value);
     if (!isCompact) input.rows = Math.min(12, Math.max(2, input.value.split("\n").length + 1));
     if (key === "model") input.setAttribute("list", "model-suggestions");
@@ -328,11 +330,11 @@
     render: function () {
       var root = document.getElementById("rendered-editor"); root.replaceChildren();
       var data = IDE.state.document; var messages = Array.isArray(data.messages) ? data.messages : null;
-      var switcher = el("nav", "rendered-switcher");
-      ["messages", "tools"].forEach(function (tab) { var tabButton = button(tab.toUpperCase(), IDE.state.renderedTab === tab ? "active" : "", function () { IDE.state.renderedTab = tab; IDE.Rendered.render(); }); switcher.append(tabButton); }); root.append(switcher);
-      if (IDE.state.renderedTab === "tools") renderTools(root, data);
-      else {
-        var title = el("div", "section-title"); title.append(el("h2", "", "Messages"), el("span", "count", messages ? messages.length + " ITEMS" : "NOT AN ARRAY")); root.append(title);
+      {
+        var title = el("div", "section-title"); var titleActions = el("div", "section-title-actions");
+        var toolCount = Array.isArray(data.tools) ? data.tools.length : 0;
+        titleActions.append(el("span", "count", messages ? messages.length + " ITEMS" : "NOT AN ARRAY"), button("Configure tools (" + toolCount + ")", "secondary configure-tools-button", showToolsDialog));
+        title.append(el("h2", "", "Messages"), titleActions); root.append(title);
         if (messages) {
           messages.forEach(function (message, index) { root.append(messageCard(message, index, messages)); });
           root.append(button("+ Add message", "secondary", function () { messages.push({ role: "user", content: "" }); commit(); IDE.Rendered.render(); }));

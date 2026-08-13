@@ -1,7 +1,10 @@
 (function () {
   "use strict";
   var IDE = window.LlamaIDE;
-  function syncRaw() { document.getElementById("raw-editor").value = IDE.state.rawText || IDE.Json.pretty(IDE.state.document); }
+  function syncRaw() {
+    var area = document.getElementById("raw-editor"); area.value = IDE.state.rawText || IDE.Json.pretty(IDE.state.document);
+    IDE.Json.highlight(document.getElementById("raw-highlight"), area.value);
+  }
   function captureResponse(response) {
     if (response && typeof response === "object") {
       IDE.state.lastResponse = JSON.parse(JSON.stringify(response));
@@ -39,7 +42,8 @@
   document.getElementById("mcp-connect").addEventListener("click", function () { IDE.App.safe(IDE.MCP.connect); });
   document.querySelectorAll("[data-close-settings]").forEach(function (button) { button.addEventListener("click", function () { document.getElementById("settings-dialog").close(); }); });
   document.getElementById("file-input").addEventListener("change", function () { if (this.files[0]) IDE.App.safe(function () { return IDE.Files.openInput(this.files[0]); }.bind(this)); this.value = ""; });
-  document.getElementById("raw-editor").addEventListener("input", function () { IDE.state.rawText = this.value; IDE.setDirty(true); try { IDE.Json.parse(this.value); document.getElementById("json-status").textContent = "Valid JSON"; } catch (_) { document.getElementById("json-status").textContent = "Invalid JSON"; } });
+  document.getElementById("raw-editor").addEventListener("input", function () { IDE.state.rawText = this.value; IDE.Json.highlight(document.getElementById("raw-highlight"), this.value); IDE.setDirty(true); try { IDE.Json.parse(this.value); document.getElementById("json-status").textContent = "Valid JSON"; } catch (_) { document.getElementById("json-status").textContent = "Invalid JSON"; } });
+  document.getElementById("raw-editor").addEventListener("scroll", function () { var highlight = document.getElementById("raw-highlight"); highlight.scrollTop = this.scrollTop; highlight.scrollLeft = this.scrollLeft; });
   document.getElementById("format-button").addEventListener("click", function () { IDE.App.safe(async function () { if (IDE.state.activeView === "raw") { IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value); } IDE.state.rawText = IDE.Json.pretty(IDE.state.document); syncRaw(); IDE.setDirty(true); }); });
   document.getElementById("refresh-prompt").addEventListener("click", IDE.Server.applyTemplate); document.getElementById("refresh-model").addEventListener("click", IDE.Server.loadModel); document.getElementById("refresh-slots").addEventListener("click", IDE.Server.loadSlots);
   document.getElementById("run-button").addEventListener("click", function () { IDE.App.safe(async function () {
