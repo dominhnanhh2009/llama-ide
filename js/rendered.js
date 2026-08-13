@@ -22,6 +22,70 @@
     requestAnimationFrame(function () { autoSize(area); });
     return area;
   }
+  function appendInlineMarkdown(parent, text) {
+    var pattern = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_([^_]+)_|\[[^\]]+\]\(https?:\/\/[^\s)]+\))/g; var last = 0; var match;
+    while ((match = pattern.exec(text))) {
+      parent.append(document.createTextNode(text.slice(last, match.index))); var token = match[0]; var node;
+      if (token[0] === "`") node = el("code", "", token.slice(1, -1));
+      else if (token.slice(0, 2) === "**" || token.slice(0, 2) === "__") node = el("strong", "", token.slice(2, -2));
+      else if (token[0] === "*") node = el("em", "", token.slice(1, -1));
+      else if (token[0] === "_") node = el("em", "", token.slice(1, -1));
+      else { var parts = token.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/); node = el("a", "", parts[1]); node.href = parts[2]; node.target = "_blank"; node.rel = "noopener noreferrer"; }
+      parent.append(node); last = pattern.lastIndex;
+    }
+    parent.append(document.createTextNode(text.slice(last)));
+  }
+  function markdownPreview(text) {
+    var root = el("div", "markdown-preview"); var lines = String(text || "").split(/\r?\n/); var paragraph = []; var list = null; var code = null;
+    function flushParagraph() { if (!paragraph.length) return; var p = el("p"); appendInlineMarkdown(p, paragraph.join(" ")); root.append(p); paragraph = []; }
+    function flushList() { list = null; }
+    lines.forEach(function (line) {
+      if (/^```/.test(line)) { flushParagraph(); flushList(); if (code) { root.append(code); code = null; } else code = el("pre"); return; }
+      if (code) { var codeNode = code.firstChild || el("code"); if (!code.firstChild) code.append(codeNode); codeNode.textContent += (codeNode.textContent ? "\n" : "") + line; return; }
+      var heading = line.match(/^(#{1,3})\s+(.+)$/); var unordered = line.match(/^\s*[-*+]\s+(.+)$/); var ordered = line.match(/^\s*\d+[.)]\s+(.+)$/); var quote = line.match(/^>\s?(.*)$/);
+      if (heading) { flushParagraph(); flushList(); var h = el("h" + heading[1].length); appendInlineMarkdown(h, heading[2]); root.append(h); }
+      else if (unordered || ordered) { flushParagraph(); var tag = ordered ? "ol" : "ul"; if (!list || list.tagName.toLowerCase() !== tag) { list = el(tag); root.append(list); } var li = el("li"); appendInlineMarkdown(li, (unordered || ordered)[1]); list.append(li); }
+      else if (quote) { flushParagraph(); flushList(); var block = el("blockquote"); appendInlineMarkdown(block, quote[1]); root.append(block); }
+      else if (!line.trim()) { flushParagraph(); flushList(); }
+      else { flushList(); paragraph.push(line.trim()); }
+    });
+    flushParagraph(); if (code) root.append(code); if (!root.childNodes.length) { root.classList.add("markdown-empty"); root.dataset.placeholder = "Type Markdown here"; } return root;
+  }
+  function inlineMarkdownFromNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) return node.nodeValue;
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+    var tag = node.tagName.toLowerCase(); var content = Array.prototype.map.call(node.childNodes, inlineMarkdownFromNode).join("");
+    if (tag === "strong" || tag === "b") return "**" + content + "**";
+    if (tag === "em" || tag === "i") return "*" + content + "*";
+    if (tag === "code" && node.parentElement && node.parentElement.tagName.toLowerCase() !== "pre") return "`" + content + "`";
+    if (tag === "a") return "[" + content + "](" + (node.getAttribute("href") || "") + ")";
+    if (tag === "br") return "\n";
+    return content;
+  }
+  function markdownFromPreview(root) {
+    var blocks = [];
+    Array.prototype.forEach.call(root.childNodes, function (node) {
+      if (node.nodeType === Node.TEXT_NODE) { if (node.nodeValue.trim()) blocks.push(node.nodeValue); return; }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      var tag = node.tagName.toLowerCase(); var content = inlineMarkdownFromNode(node).trim();
+      if (/^h[1-3]$/.test(tag)) blocks.push(new Array(Number(tag[1]) + 1).join("#") + " " + content);
+      else if (tag === "blockquote") blocks.push(content.split("\n").map(function (line) { return "> " + line; }).join("\n"));
+      else if (tag === "pre") blocks.push("```\n" + node.textContent.replace(/^\n|\n$/g, "") + "\n```");
+      else if (tag === "ul" || tag === "ol") {
+        var items = Array.prototype.map.call(node.children, function (item, index) { return (tag === "ol" ? index + 1 + ". " : "- ") + inlineMarkdownFromNode(item).trim(); }); blocks.push(items.join("\n"));
+      } else if (tag === "div") blocks.push(content);
+      else blocks.push(content);
+    });
+    return blocks.filter(function (block) { return block !== ""; }).join("\n\n");
+  }
+  function applyMarkdown(area, value) {
+    if (!IDE.state.renderMarkdown) return area;
+    area.classList.add("markdown-source-hidden"); var preview = markdownPreview(value); var syncing = false;
+    preview.contentEditable = "true"; preview.spellcheck = true; preview.setAttribute("role", "textbox"); preview.setAttribute("aria-label", "Editable Markdown preview"); preview.title = "Edit rendered Markdown directly";
+    area.addEventListener("input", function () { if (syncing) return; var next = markdownPreview(area.value); next.contentEditable = "true"; next.spellcheck = true; next.setAttribute("role", "textbox"); next.setAttribute("aria-label", "Editable Markdown preview"); next.title = preview.title; preview.replaceWith(next); preview = next; bindPreview(); });
+    function bindPreview() { preview.addEventListener("input", function () { preview.classList.toggle("markdown-empty", !preview.textContent.trim()); syncing = true; area.value = markdownFromPreview(preview); area.dispatchEvent(new Event("input", { bubbles: true })); syncing = false; }); }
+    bindPreview(); var wrap = el("div", "markdown-editor"); wrap.append(area, preview); return wrap;
+  }
   function jsonEditor(value, onChange) {
     var frame = el("div", "json-editor"); var highlight = el("pre", "json-highlight");
     var area = el("textarea", "json-input"); area.spellcheck = false; area.value = IDE.Json.pretty(value);
@@ -136,7 +200,7 @@
     if (part.type === "text") {
       var textArea = expandingArea("text-content", typeof part.text === "string" ? part.text : ""); textArea.spellcheck = true;
       textArea.addEventListener("input", function () { part.text = textArea.value; card.classList.remove("invalid"); commit(); });
-      card.append(textArea); return;
+      card.append(applyMarkdown(textArea, part.text)); return;
     }
     var payload = {}; Object.keys(part).forEach(function (key) { if (key !== "type") payload[key] = part[key]; });
     var area = expandingArea("json-value", IDE.Json.pretty(payload)); area.spellcheck = false;
@@ -220,7 +284,7 @@
     } else {
       var area = expandingArea("text-content", IDE.Json.scalarText(value)); area.spellcheck = true;
       area.addEventListener("input", function () { try { message[key] = IDE.Json.parseScalarText(area.value, value); commit(); } catch (_) { /* preserve draft until valid */ } });
-      group.append(area);
+      group.append(typeof value === "string" ? applyMarkdown(area, value) : area);
     }
     body.append(group);
   }

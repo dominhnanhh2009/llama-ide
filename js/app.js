@@ -44,6 +44,13 @@
     var button = document.getElementById("use-mcp-button");
     IDE.App.safe(function () { return IDE.MCP.connect({ url: IDE.state.settings.mcpUrl, button: button }); });
   });
+  document.getElementById("markdown-button").addEventListener("click", function () {
+    var button = document.getElementById("markdown-button"); IDE.state.renderMarkdown = !IDE.state.renderMarkdown;
+    button.classList.toggle("active", IDE.state.renderMarkdown); button.setAttribute("aria-pressed", String(IDE.state.renderMarkdown));
+    button.title = IDE.state.renderMarkdown ? "Disable Markdown rendering" : "Enable Markdown rendering";
+    button.setAttribute("aria-label", button.title); button.querySelector(".action-label").textContent = IDE.state.renderMarkdown ? "Markdown on" : "Markdown off";
+    IDE.Rendered.render();
+  });
   document.querySelectorAll("[data-close-settings]").forEach(function (button) { button.addEventListener("click", function () { document.getElementById("settings-dialog").close(); }); });
   document.getElementById("file-input").addEventListener("change", function () { if (this.files[0]) IDE.App.safe(function () { return IDE.Files.openInput(this.files[0]); }.bind(this)); this.value = ""; });
   document.getElementById("raw-editor").addEventListener("input", function () { IDE.state.rawText = this.value; IDE.Json.highlight(document.getElementById("raw-highlight"), this.value); IDE.setDirty(true); try { IDE.Json.parse(this.value); document.getElementById("json-status").textContent = "Valid JSON"; } catch (_) { document.getElementById("json-status").textContent = "Invalid JSON"; } });

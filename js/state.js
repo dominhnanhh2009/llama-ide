@@ -12,6 +12,7 @@
     dirty: false,
     activeView: "rendered",
     renderedTab: "messages",
+    renderMarkdown: true,
     settings: {
       baseUrl: localStorage.getItem("llamaIde.baseUrl") || "http://localhost:3333",
       mcpUrl: localStorage.getItem("llamaIde.mcpUrl") || "http://localhost:5555/mcp",
