@@ -271,7 +271,7 @@
     return ["assistant", "user", "system", "tool"].indexOf(role) !== -1 ? " role-" + role : " role-other";
   }
   function contentEditor(message, key, body) {
-    var group = el("div", "content-group");
+    var group = el("div", "content-group" + (key === "reasoning_content" ? " reasoning-content-group" : ""));
     var title = el("div", "field-label"); title.append(el("span", "", key));
     title.append(button("+ Add part", "mini-button", function () {
       if (Array.isArray(message[key])) message[key].push({ type: "text", text: "" });
@@ -342,7 +342,11 @@
       event.preventDefault(); IDE.App.safe(function () { return pasteImagesIntoMessage(message, files); });
     });
     if (isToolResult && "content" in message) toolResultContent(message, body);
-    Object.keys(message).forEach(function (key) {
+    var messageKeys = Object.keys(message);
+    if (messageKeys.indexOf("reasoning_content") !== -1) {
+      messageKeys = ["reasoning_content"].concat(messageKeys.filter(function (key) { return key !== "reasoning_content"; }));
+    }
+    messageKeys.forEach(function (key) {
       if (key === "role" || (isToolResult && (key === "tool_call_id" || key === "name" || key === "content"))) return;
       if (key === "content" && Array.isArray(message.tool_calls) && (message.content === null || message.content === "")) return;
       if (key === "content" || key === "reasoning_content") contentEditor(message, key, body);

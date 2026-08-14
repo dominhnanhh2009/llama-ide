@@ -80,6 +80,8 @@
 .field-label { display: flex; justify-content: space-between; margin-bottom: 4px; color: #aab4ae; font: 600 9px ui-monospace, monospace; letter-spacing: .07em; text-transform: uppercase; }
 .text-content, .json-value { width: 100%; min-height: 58px; height: auto; resize: none; overflow: hidden; padding: 7px 8px; font: 12px/1.45 ui-monospace, monospace; }
 .markdown-editor { display: block; }
+.reasoning-content-group .markdown-editor { opacity: .45; }
+.reasoning-content-group .field-label { color: #87918c; }
 .markdown-source-hidden { display: none; }
 .markdown-preview { min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); background: #0f1211; color: #dbe3dd; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .markdown-preview > :first-child { margin-top: 0; }
