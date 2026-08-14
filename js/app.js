@@ -41,6 +41,22 @@
     refreshAll: function () { document.getElementById("file-name").textContent = IDE.state.fileName; syncRaw(); IDE.Rendered.render(); IDE.Response.render(); },
     safe: async function (work) { try { await work(); IDE.App.notice(""); } catch (error) { if (error && error.name !== "AbortError") IDE.App.notice(error.message || String(error)); } }
   };
+  var narrowLayout = window.matchMedia("(max-width: 900px)");
+  var sideColumnManuallyToggled = false;
+  function setSideColumnOpen(open) {
+    var toggle = document.getElementById("side-column-toggle");
+    document.body.classList.toggle("side-column-open", open);
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.title = open ? "Collapse side panel" : "Expand side panel";
+  }
+  setSideColumnOpen(!narrowLayout.matches);
+  document.getElementById("side-column-toggle").addEventListener("click", function () {
+    sideColumnManuallyToggled = true;
+    setSideColumnOpen(!document.body.classList.contains("side-column-open"));
+  });
+  narrowLayout.addEventListener("change", function (event) {
+    if (!sideColumnManuallyToggled) setSideColumnOpen(!event.matches);
+  });
   document.querySelectorAll("[data-menu]").forEach(function (button) { button.addEventListener("click", function (event) { event.stopPropagation(); var menu = document.getElementById(button.dataset.menu); var open = !menu.classList.contains("open"); document.querySelectorAll(".menu").forEach(function (m) { m.classList.remove("open"); }); menu.classList.toggle("open", open); button.classList.toggle("open", open); }); });
   document.addEventListener("click", function () { document.querySelectorAll(".menu").forEach(function (m) { m.classList.remove("open"); }); });
   document.querySelectorAll(".view-tabs button").forEach(function (b) { b.addEventListener("click", function () { activateView(b.dataset.view); }); });

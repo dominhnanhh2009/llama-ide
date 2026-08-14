@@ -27,6 +27,7 @@
       <button class="menu-button" data-action="settings">Settings</button>
     </div>
     <div class="connection"><span class="status-dot" id="server-dot"></span><span id="server-label">Server not checked</span></div>
+    <button class="side-column-toggle" id="side-column-toggle" type="button" aria-controls="side-column" aria-expanded="true" title="Toggle side panel"><span aria-hidden="true">☰</span><span class="side-column-toggle-label">Panel</span></button>
   </header>
 
   <main class="workspace">
@@ -64,7 +65,7 @@
       </section>
     </section>
 
-    <aside class="side-column">
+    <aside class="side-column" id="side-column" aria-label="Request and runtime panel">
       <section class="side-panel inspector-panel">
         <nav class="side-tabs" aria-label="Request details"><button class="active">Request fields</button></nav>
         <div class="side-view active" id="fields-side-view"><div id="request-fields-host"></div></div>
