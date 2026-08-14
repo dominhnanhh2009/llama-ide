@@ -92,19 +92,37 @@
   document.getElementById("format-button").addEventListener("click", function () { IDE.App.safe(async function () { if (IDE.state.activeView === "raw") { IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value); } IDE.state.rawText = IDE.Json.pretty(IDE.state.document); syncRaw(); IDE.setDirty(true); }); });
   document.getElementById("refresh-prompt").addEventListener("click", IDE.Server.applyTemplate); document.getElementById("refresh-models").addEventListener("click", IDE.Server.loadModels); document.getElementById("refresh-slots").addEventListener("click", IDE.Server.loadSlots);
   document.querySelectorAll("[data-close-model-properties]").forEach(function (button) { button.addEventListener("click", function () { document.getElementById("model-properties-dialog").close(); }); });
+  var toolbar = document.querySelector(".document-actions"), toolbarHandle = document.getElementById("toolbar-drag-handle");
+  toolbarHandle.addEventListener("pointerdown", function (event) {
+    if (event.button !== 0) return;
+    var rect = toolbar.getBoundingClientRect(), offsetX = event.clientX - rect.left, offsetY = event.clientY - rect.top;
+    toolbar.classList.add("drag-positioned", "dragging"); toolbar.style.left = rect.left + "px"; toolbar.style.top = rect.top + "px";
+    toolbarHandle.setPointerCapture(event.pointerId); event.preventDefault();
+    function move(moveEvent) {
+      var maxLeft = Math.max(0, window.innerWidth - toolbar.offsetWidth), maxTop = Math.max(48, window.innerHeight - toolbar.offsetHeight);
+      toolbar.style.left = Math.max(0, Math.min(maxLeft, moveEvent.clientX - offsetX)) + "px";
+      toolbar.style.top = Math.max(48, Math.min(maxTop, moveEvent.clientY - offsetY)) + "px";
+    }
+    function end() { toolbar.classList.remove("dragging"); toolbarHandle.removeEventListener("pointermove", move); toolbarHandle.removeEventListener("pointerup", end); toolbarHandle.removeEventListener("pointercancel", end); }
+    toolbarHandle.addEventListener("pointermove", move); toolbarHandle.addEventListener("pointerup", end); toolbarHandle.addEventListener("pointercancel", end);
+  });
+  document.getElementById("stop-button").addEventListener("click", function () {
+    if (IDE.Server.stop()) { this.disabled = true; IDE.App.notice("Stopping the current SSE stream and finalizing the partial response…"); }
+  });
   document.getElementById("run-button").addEventListener("click", function () {
-    var runButton = document.getElementById("run-button"); var icon = runButton.querySelector(".action-icon"); var label = runButton.querySelector(".action-label");
+    var runButton = document.getElementById("run-button"), stopButton = document.getElementById("stop-button"); var icon = runButton.querySelector(".action-icon"); var label = runButton.querySelector(".action-label");
     IDE.App.safe(async function () {
       runButton.disabled = true; runButton.classList.add("busy"); icon.textContent = "◌"; label.textContent = "Waiting for response"; runButton.setAttribute("aria-label", "Waiting for response");
       try {
         if (IDE.state.activeView === "raw") { IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value); IDE.state.rawText = document.getElementById("raw-editor").value; }
-        var count = 0, toolCount = 0;
+        var count = 0, toolCount = 0, stopped = false;
         var turnLimit = IDE.state.settings.toolLoopLimit;
         for (var turn = 0; turn < turnLimit; turn += 1) {
           var requestDocument = JSON.parse(JSON.stringify(IDE.state.document));
           var streamedMessage = null;
           if (requestDocument.stream === true) {
             streamedMessage = { role: "assistant", content: "" }; IDE.state.document.messages.push(streamedMessage); IDE.setDirty(true); scheduleStreamRender();
+            stopButton.disabled = false;
           }
           var result = await IDE.Server.run(requestDocument, function (partial) {
             if (!streamedMessage) return;
@@ -113,6 +131,8 @@
             scheduleStreamRender();
           });
           count += captureResponse(result, streamedMessage);
+          stopButton.disabled = true;
+          if (result && result.stopped) { stopped = true; break; }
           var message = result && result.choices && result.choices[0] && result.choices[0].message;
           var calls = IDE.MCP.toolCalls(message);
           if (!calls.length) break;
@@ -124,8 +144,9 @@
           if (turn === turnLimit - 1) throw new Error("Stopped after " + turnLimit + " model/tool turns. Change the limit in Settings if needed.");
         }
         activateView("rendered");
-        IDE.App.notice("Captured " + count + " assistant message" + (count === 1 ? "" : "s") + (toolCount ? " and executed " + toolCount + " MCP tool call" + (toolCount === 1 ? "" : "s") : "") + ". Response metadata is shown below for this session only.");
+        IDE.App.notice((stopped ? "Stopped SSE cleanly and captured " : "Captured ") + count + " assistant message" + (count === 1 ? "" : "s") + (toolCount ? " and executed " + toolCount + " MCP tool call" + (toolCount === 1 ? "" : "s") : "") + ". Response metadata is shown below for this session only.");
       } finally {
+        stopButton.disabled = true;
         runButton.disabled = false; runButton.classList.remove("busy"); icon.textContent = "▶"; label.textContent = "Run request"; runButton.setAttribute("aria-label", "Run request");
       }
     });

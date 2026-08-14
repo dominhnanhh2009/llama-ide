@@ -48,9 +48,18 @@
   }
   async function streamRequest(path, options, onProgress) {
     if (!IDE.state.settings.baseUrl) throw new Error("Set llama-server base URL in Settings first.");
-    var response = await fetch(url(path), options);
-    if (!response.ok) { var errorText = await response.text(); throw new Error(response.status + " " + response.statusText + (errorText ? "\n" + errorText : "")); }
-    if (!response.body) throw new Error("This browser did not expose the SSE response stream.");
+    var controller = new AbortController(); options.signal = controller.signal;
+    var stream = { controller: controller, stopped: false };
+    IDE.Server.activeStream = stream;
+    var response;
+    try { response = await fetch(url(path), options); }
+    catch (error) {
+      if (IDE.Server.activeStream === stream) IDE.Server.activeStream = null;
+      if (stream.stopped && error.name === "AbortError") return { object: "chat.completion", choices: [{ index: 0, message: { role: "assistant", content: "" }, finish_reason: "cancelled" }], stopped: true };
+      throw error;
+    }
+    if (!response.ok) { var errorText = await response.text(); if (IDE.Server.activeStream === stream) IDE.Server.activeStream = null; throw new Error(response.status + " " + response.statusText + (errorText ? "\n" + errorText : "")); }
+    if (!response.body) { if (IDE.Server.activeStream === stream) IDE.Server.activeStream = null; throw new Error("This browser did not expose the SSE response stream."); }
     var reader = response.body.getReader(), decoder = new TextDecoder(), buffer = "";
     var result = { object: "chat.completion", choices: [] }, doneEvent = false;
     function consume(block) {
@@ -62,13 +71,25 @@
       if (chunk.error) throw new Error(chunk.error.message || JSON.stringify(chunk.error));
       mergeChunk(result, chunk); if (onProgress) onProgress(partialText(result));
     }
-    while (!doneEvent) {
-      var next = await reader.read(); buffer += decoder.decode(next.value || new Uint8Array(), { stream: !next.done });
-      var boundary;
-      while ((boundary = buffer.search(/\r?\n\r?\n/)) !== -1) { var block = buffer.slice(0, boundary); buffer = buffer.slice(boundary).replace(/^\r?\n\r?\n/, ""); consume(block); }
-      if (next.done) { if (buffer.trim()) consume(buffer); break; }
+    try {
+      while (!doneEvent) {
+        var next = await reader.read(); buffer += decoder.decode(next.value || new Uint8Array(), { stream: !next.done });
+        var boundary;
+        while ((boundary = buffer.search(/\r?\n\r?\n/)) !== -1) { var block = buffer.slice(0, boundary); buffer = buffer.slice(boundary).replace(/^\r?\n\r?\n/, ""); consume(block); }
+        if (next.done) { if (buffer.trim()) consume(buffer); break; }
+      }
+    } catch (error) {
+      if (!stream.stopped || error.name !== "AbortError") throw error;
+    } finally {
+      if (IDE.Server.activeStream === stream) IDE.Server.activeStream = null;
     }
-    result.choices = result.choices.filter(Boolean); return result;
+    result.choices = result.choices.filter(Boolean);
+    if (stream.stopped) {
+      if (!result.choices.length) result.choices.push({ index: 0, message: { role: "assistant", content: "" }, finish_reason: "cancelled" });
+      result.choices.forEach(function (choice) { choice.finish_reason = "cancelled"; });
+      result.stopped = true;
+    }
+    return result;
   }
   function flatten(value, prefix, rows) {
     if (value && typeof value === "object") Object.keys(value).forEach(function (key) { flatten(value[key], prefix ? prefix + "." + key : key, rows); });
@@ -115,6 +136,12 @@
     return request("/props?model=" + encodeURIComponent(model));
   }
   IDE.Server = {
+    activeStream: null,
+    stop: function () {
+      var stream = IDE.Server.activeStream;
+      if (!stream || stream.stopped) return false;
+      stream.stopped = true; stream.controller.abort(); return true;
+    },
     showModelProperties: async function (model) {
       var dialog = document.getElementById("model-properties-dialog");
       document.getElementById("model-properties-title").textContent = model;
