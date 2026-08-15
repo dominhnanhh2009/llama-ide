@@ -262,6 +262,10 @@
     body.append(group);
   }
   function toolResultContent(message, body) {
+    if (Array.isArray(message.content)) {
+      contentEditor(message, "content", body);
+      return;
+    }
     var area = expandingArea("tool-result-content", IDE.Json.scalarText(message.content)); area.spellcheck = true;
     area.placeholder = "Tool result content";
     area.addEventListener("input", function () { try { message.content = IDE.Json.parseScalarText(area.value, message.content); commit(); } catch (_) {} });

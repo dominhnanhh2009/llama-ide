@@ -32,9 +32,19 @@
     return args || {};
   }
 
-  function resultText(result) {
+  function resultContent(result) {
     if (result && Array.isArray(result.content)) {
       var texts = result.content.filter(function (part) { return part && part.type === "text" && typeof part.text === "string"; }).map(function (part) { return part.text; });
+      var hasImages = result.content.some(function (part) { return part && part.type === "image" && typeof part.data === "string" && typeof part.mimeType === "string"; });
+      if (hasImages) {
+        return result.content.reduce(function (parts, part) {
+          if (part && part.type === "text" && typeof part.text === "string") parts.push({ type: "text", text: part.text });
+          if (part && part.type === "image" && typeof part.data === "string" && typeof part.mimeType === "string") {
+            parts.push({ type: "image_url", image_url: { url: "data:" + part.mimeType + ";base64," + part.data } });
+          }
+          return parts;
+        }, []);
+      }
       if (texts.length) return texts.join("\n");
     }
     return JSON.stringify(result);
@@ -115,7 +125,7 @@
     },
 
     toolMessage: function (call, result) {
-      return { role: "tool", tool_call_id: call.id || call.function.name, name: call.function.name, content: resultText(result) };
+      return { role: "tool", tool_call_id: call.id || call.function.name, name: call.function.name, content: resultContent(result) };
     }
   };
 })();
