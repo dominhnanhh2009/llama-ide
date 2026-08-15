@@ -251,9 +251,8 @@ dialog::backdrop { background: #050706c9; }
 .compact-call-name { color: #c9e6ad; }
 .compact-args-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; padding: 6px; }
 .argument-row { min-width: 0; display: grid; grid-template-columns: minmax(64px, .38fr) minmax(100px, 1fr); gap: 5px; align-items: center; }
-.argument-key { overflow: hidden; text-overflow: ellipsis; color: #9dc7ff; font: 9px ui-monospace, monospace; }
-.argument-value { width: 100%; min-width: 0; height: 25px; padding: 3px 5px; font: 10px/1.35 ui-monospace, monospace; }
-textarea.argument-value { min-height: 25px; resize: vertical; }
+.argument-key { overflow-wrap: anywhere; color: #9dc7ff; font: 9px/1.35 ui-monospace, monospace; }
+.argument-value { width: 100%; min-width: 0; min-height: 25px; height: auto; overflow: hidden; padding: 3px 5px; resize: none; white-space: pre-wrap; overflow-wrap: anywhere; font: 10px/1.35 ui-monospace, monospace; }
 .argument-row.invalid .argument-value { border-color: var(--danger); }
 .argument-raw { grid-column: 1 / -1; min-height: 42px !important; }
 .empty-arguments { grid-column: 1 / -1; padding: 3px; color: var(--muted); font: 9px ui-monospace, monospace; }

@@ -1,6 +1,12 @@
 (function () {
   "use strict";
   var IDE = window.LlamaIDE;
+  var imagePreviewCache = new Map();
+  window.addEventListener("unload", function () {
+    imagePreviewCache.forEach(function (preview) {
+      if (preview.objectUrl) URL.revokeObjectURL(preview.objectUrl);
+    });
+  });
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -111,6 +117,22 @@
       part.image_url.url = url;
     }
   }
+  function remoteImagePreview(url) {
+    var cached = imagePreviewCache.get(url);
+    if (cached) return cached.promise;
+    var preview = { objectUrl: "", promise: null };
+    preview.promise = fetch(url, { mode: "cors" }).then(function (response) {
+      if (!response.ok) throw new Error("Image request failed");
+      var type = response.headers.get("content-type") || "";
+      if (type.indexOf("image/") !== 0) throw new Error("URL is not an image");
+      return response.blob();
+    }).then(function (blob) {
+      preview.objectUrl = URL.createObjectURL(blob);
+      return preview.objectUrl;
+    }).catch(function () { return ""; });
+    imagePreviewCache.set(url, preview);
+    return preview.promise;
+  }
   function partIsEmpty(part) {
     if (!part || typeof part !== "object") return true;
     if (part.type === "text") return !part.text;
@@ -186,13 +208,11 @@
     if (/^data:image\//i.test(url) || /^blob:/i.test(url)) showImage(url, false);
     else if (/^https?:\/\//i.test(url)) {
       frame.append(el("div", "image-loading", "Loading image preview…"));
-      fetch(url, { mode: "cors" }).then(function (response) {
-        if (!response.ok) throw new Error("Image request failed");
-        var type = response.headers.get("content-type") || "";
-        if (type.indexOf("image/") !== 0) throw new Error("URL is not an image");
-        return response.blob();
-      }).then(function (blob) { frame.replaceChildren(); var objectUrl = URL.createObjectURL(blob); showImage(objectUrl, true); })
-        .catch(function () { showLink(url); });
+      remoteImagePreview(url).then(function (src) {
+        frame.replaceChildren();
+        if (src) showImage(src, false);
+        else showLink(url);
+      });
     } else showLink(url);
     return frame;
   }
@@ -244,8 +264,9 @@
         if (!argKeys.length) argsEditor.append(el("span", "empty-arguments", "No arguments"));
         argKeys.forEach(function (argKey) {
           var row = el("label", "argument-row"); row.append(el("span", "argument-key", argKey));
-          var argValue = args[argKey]; var input = el(typeof argValue === "object" && argValue !== null ? "textarea" : "input", "argument-value");
+          var argValue = args[argKey]; var input = expandingArea("argument-value", "");
           input.value = typeof argValue === "string" ? argValue : JSON.stringify(argValue); input.spellcheck = false;
+          requestAnimationFrame(function () { autoSize(input); });
           input.addEventListener("change", function () {
             var next = Object.assign({}, args);
             if (typeof argValue === "string") next[argKey] = input.value;
@@ -255,7 +276,7 @@
           row.append(input); argsEditor.append(row);
         });
       } else {
-        var rawArgs = el("textarea", "argument-value argument-raw"); rawArgs.value = typeof args === "string" ? args : JSON.stringify(args); rawArgs.addEventListener("change", function () { call.function.arguments = rawArgs.value; commit(); }); argsEditor.append(rawArgs);
+        var rawArgs = expandingArea("argument-value argument-raw", typeof args === "string" ? args : JSON.stringify(args)); rawArgs.spellcheck = false; rawArgs.addEventListener("change", function () { call.function.arguments = rawArgs.value; commit(); }); argsEditor.append(rawArgs);
       }
       card.append(head, argsEditor); group.append(card);
     });
