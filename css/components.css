@@ -98,6 +98,10 @@
 .markdown-preview pre { margin: .55em 0; padding: 8px 10px; overflow: auto; border: 1px solid var(--line); background: #090c0b; }
 .markdown-preview code { padding: .1em .3em; background: #202622; color: #c9e6ad; font: .95em ui-monospace, monospace; }
 .markdown-preview pre code { padding: 0; background: transparent; }
+.markdown-preview table { width: 100%; margin: .65em 0; border-collapse: collapse; font-size: 11px; }
+.markdown-preview th, .markdown-preview td { padding: 6px 8px; border: 1px solid #3b4640; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.markdown-preview th { background: #1a211d; color: #c9e6ad; font-weight: 700; }
+.markdown-preview tbody tr:nth-child(even) { background: #131816; }
 .markdown-preview a { color: #8ec5ff; }
 .markdown-preview[contenteditable="true"] { cursor: text; outline: none; }
 .markdown-preview[contenteditable="true"]:focus { border-color: #719451; box-shadow: 0 0 0 1px #719451; }

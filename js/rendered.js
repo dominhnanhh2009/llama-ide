@@ -41,20 +41,62 @@
     }
     parent.append(document.createTextNode(text.slice(last)));
   }
+  function splitTableRow(line) {
+    var source = String(line || "").trim();
+    if (source[0] === "|") source = source.slice(1);
+    if (source[source.length - 1] === "|") source = source.slice(0, -1);
+    var cells = [], cell = "", escaped = false, code = false;
+    for (var i = 0; i < source.length; i += 1) {
+      var character = source[i];
+      if (escaped) { cell += character; escaped = false; continue; }
+      if (character === "\\") { escaped = true; continue; }
+      if (character === "`") { code = !code; cell += character; continue; }
+      if (character === "|" && !code) { cells.push(cell.trim()); cell = ""; continue; }
+      cell += character;
+    }
+    if (escaped) cell += "\\";
+    cells.push(cell.trim());
+    return cells;
+  }
+  function tableSeparator(line, columnCount) {
+    if (String(line || "").indexOf("|") === -1) return null;
+    var cells = splitTableRow(line);
+    if (cells.length !== columnCount || !cells.every(function (cell) { return /^:?-{3,}:?$/.test(cell); })) return null;
+    return cells.map(function (cell) {
+      return cell[0] === ":" && cell[cell.length - 1] === ":" ? "center" : cell[cell.length - 1] === ":" ? "right" : cell[0] === ":" ? "left" : "";
+    });
+  }
+  function markdownTable(lines, index) {
+    if (index + 1 >= lines.length || lines[index].indexOf("|") === -1) return null;
+    var headings = splitTableRow(lines[index]); var alignments = tableSeparator(lines[index + 1], headings.length);
+    if (!alignments) return null;
+    var table = el("table"); var head = el("thead"); var headRow = el("tr");
+    headings.forEach(function (heading, column) { var th = el("th"); if (alignments[column]) th.style.textAlign = alignments[column]; appendInlineMarkdown(th, heading); headRow.append(th); });
+    head.append(headRow); table.append(head); var body = el("tbody"); var next = index + 2;
+    while (next < lines.length && lines[next].trim() && lines[next].indexOf("|") !== -1) {
+      var values = splitTableRow(lines[next]); var row = el("tr");
+      headings.forEach(function (_, column) { var td = el("td"); if (alignments[column]) td.style.textAlign = alignments[column]; appendInlineMarkdown(td, values[column] || ""); row.append(td); });
+      body.append(row); next += 1;
+    }
+    table.append(body); return { node: table, next: next };
+  }
   function markdownPreview(text) {
     var root = el("div", "markdown-preview"); var lines = String(text || "").split(/\r?\n/); var paragraph = []; var list = null; var code = null;
     function flushParagraph() { if (!paragraph.length) return; var p = el("p"); appendInlineMarkdown(p, paragraph.join(" ")); root.append(p); paragraph = []; }
     function flushList() { list = null; }
-    lines.forEach(function (line) {
-      if (/^```/.test(line)) { flushParagraph(); flushList(); if (code) { root.append(code); code = null; } else code = el("pre"); return; }
-      if (code) { var codeNode = code.firstChild || el("code"); if (!code.firstChild) code.append(codeNode); codeNode.textContent += (codeNode.textContent ? "\n" : "") + line; return; }
+    for (var lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      var line = lines[lineIndex]; var table;
+      if (/^```/.test(line)) { flushParagraph(); flushList(); if (code) { root.append(code); code = null; } else code = el("pre"); continue; }
+      if (code) { var codeNode = code.firstChild || el("code"); if (!code.firstChild) code.append(codeNode); codeNode.textContent += (codeNode.textContent ? "\n" : "") + line; continue; }
+      table = markdownTable(lines, lineIndex);
+      if (table) { flushParagraph(); flushList(); root.append(table.node); lineIndex = table.next - 1; continue; }
       var heading = line.match(/^(#{1,3})\s+(.+)$/); var unordered = line.match(/^\s*[-*+]\s+(.+)$/); var ordered = line.match(/^\s*\d+[.)]\s+(.+)$/); var quote = line.match(/^>\s?(.*)$/);
       if (heading) { flushParagraph(); flushList(); var h = el("h" + heading[1].length); appendInlineMarkdown(h, heading[2]); root.append(h); }
       else if (unordered || ordered) { flushParagraph(); var tag = ordered ? "ol" : "ul"; if (!list || list.tagName.toLowerCase() !== tag) { list = el(tag); root.append(list); } var li = el("li"); appendInlineMarkdown(li, (unordered || ordered)[1]); list.append(li); }
       else if (quote) { flushParagraph(); flushList(); var block = el("blockquote"); appendInlineMarkdown(block, quote[1]); root.append(block); }
       else if (!line.trim()) { flushParagraph(); flushList(); }
       else { flushList(); paragraph.push(line.trim()); }
-    });
+    }
     flushParagraph(); if (code) root.append(code); if (!root.childNodes.length) { root.classList.add("markdown-empty"); root.dataset.placeholder = "Type Markdown here"; } return root;
   }
   function inlineMarkdownFromNode(node) {
@@ -70,6 +112,7 @@
   }
   function markdownFromPreview(root) {
     var blocks = [];
+    function tableCellMarkdown(cell) { return inlineMarkdownFromNode(cell).trim().replace(/\|/g, "\\|").replace(/\s*\n\s*/g, " "); }
     Array.prototype.forEach.call(root.childNodes, function (node) {
       if (node.nodeType === Node.TEXT_NODE) { if (node.nodeValue.trim()) blocks.push(node.nodeValue); return; }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
@@ -79,6 +122,15 @@
       else if (tag === "pre") blocks.push("```\n" + node.textContent.replace(/^\n|\n$/g, "") + "\n```");
       else if (tag === "ul" || tag === "ol") {
         var items = Array.prototype.map.call(node.children, function (item, index) { return (tag === "ol" ? index + 1 + ". " : "- ") + inlineMarkdownFromNode(item).trim(); }); blocks.push(items.join("\n"));
+      } else if (tag === "table") {
+        var headerCells = Array.prototype.slice.call(node.querySelectorAll("thead th"));
+        if (!headerCells.length && node.rows.length) headerCells = Array.prototype.slice.call(node.rows[0].cells);
+        var header = "| " + headerCells.map(tableCellMarkdown).join(" | ") + " |";
+        var separator = "| " + headerCells.map(function (cell) { var alignment = cell.style.textAlign; return alignment === "center" ? ":---:" : alignment === "right" ? "---:" : alignment === "left" ? ":---" : "---"; }).join(" | ") + " |";
+        var bodyRows = Array.prototype.slice.call(node.querySelectorAll("tbody tr"));
+        if (!node.querySelector("thead")) bodyRows = Array.prototype.slice.call(node.rows, 1);
+        var rows = bodyRows.map(function (row) { return "| " + Array.prototype.map.call(row.cells, tableCellMarkdown).join(" | ") + " |"; });
+        blocks.push([header, separator].concat(rows).join("\n"));
       } else if (tag === "div") blocks.push(content);
       else blocks.push(content);
     });
