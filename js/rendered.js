@@ -532,14 +532,10 @@
     var data = IDE.state.document; var tools = Array.isArray(data.tools) ? data.tools : [];
     var dialog = el("dialog", "tools-dialog"); dialog.id = "tools-config-dialog";
     var head = el("div", "dialog-head");
-    var headActions = el("div", "dialog-actions");
-    headActions.append(
-      button("Clear all", "danger-button", function () {
-        if (Array.isArray(data.tools)) data.tools.length = 0; IDE.state.disabledTools.length = 0; commit(); showToolsDialog();
-      }),
-      button("Close", "secondary", function () { dialog.close(); dialog.remove(); IDE.Rendered.render(); })
-    );
-    head.append(el("h2", "", "Configure Tools (" + tools.length + ")"), headActions);
+    var heading = el("div"); heading.append(el("span", "eyebrow", "REQUEST TOOLS"), el("h2", "", "Configure Tools (" + tools.length + ")"));
+    var closeBtn = button("×", "icon-button", function () { dialog.close(); });
+    closeBtn.setAttribute("aria-label", "Close");
+    head.append(heading, closeBtn);
     var content = el("div", "tools-dialog-content");
     var grid = el("div", "tools-grid");
     tools.forEach(function (tool, index) {
@@ -548,13 +544,28 @@
     });
     content.append(grid);
     if (!tools.length) content.append(el("div", "empty-state", "No tools defined in this request."));
-    var bottomActions = el("div", "dialog-actions");
-    bottomActions.append(
+    var actions = el("div", "dialog-actions");
+    if (tools.length) {
+      actions.append(button("Clear all", "danger-button", function () {
+        if (Array.isArray(data.tools)) data.tools.length = 0; IDE.state.disabledTools.length = 0; commit(); showToolsDialog();
+      }));
+    }
+    actions.append(
       button("+ Add tool", "secondary", function () { if (!Array.isArray(data.tools)) data.tools = []; data.tools.push({ type: "function", function: { name: "custom_tool", description: "", parameters: { type: "object", properties: {} } } }); commit(); showToolsDialog(); }),
-      button("Done", "primary", function () { dialog.close(); dialog.remove(); IDE.Rendered.render(); })
+      button("Done", "primary", function () { dialog.close(); })
     );
-    content.append(bottomActions);
-    dialog.append(head, content); document.body.append(dialog); dialog.showModal();
+    content.append(actions);
+    dialog.append(head, content);
+    dialog.addEventListener("click", function (event) {
+      var rect = dialog.getBoundingClientRect();
+      var isInDialog = (rect.top <= event.clientY && event.clientY <= rect.top + rect.height && rect.left <= event.clientX && event.clientX <= rect.left + rect.width);
+      if (!isInDialog) dialog.close();
+    });
+    dialog.addEventListener("close", function () {
+      dialog.remove();
+      IDE.Rendered.render();
+    });
+    document.body.append(dialog); dialog.showModal();
   }
   function getOptionsForField(key) {
     if (key === "model") {

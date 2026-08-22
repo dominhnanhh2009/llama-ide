@@ -92,6 +92,13 @@
   document.getElementById("format-button").addEventListener("click", function () { IDE.App.safe(async function () { if (IDE.state.activeView === "raw") { IDE.state.document = IDE.Json.parse(document.getElementById("raw-editor").value); } IDE.state.rawText = IDE.Json.pretty(IDE.state.document); syncRaw(); IDE.setDirty(true); }); });
   document.getElementById("refresh-prompt").addEventListener("click", IDE.Server.applyTemplate); document.getElementById("refresh-models").addEventListener("click", IDE.Server.loadModels); document.getElementById("refresh-slots").addEventListener("click", IDE.Server.loadSlots);
   document.querySelectorAll("[data-close-model-properties]").forEach(function (button) { button.addEventListener("click", function () { document.getElementById("model-properties-dialog").close(); }); });
+  document.querySelectorAll("dialog").forEach(function (dlg) {
+    dlg.addEventListener("click", function (event) {
+      var rect = dlg.getBoundingClientRect();
+      var isInDialog = (rect.top <= event.clientY && event.clientY <= rect.top + rect.height && rect.left <= event.clientX && event.clientX <= rect.left + rect.width);
+      if (!isInDialog) dlg.close();
+    });
+  });
   var toolbar = document.querySelector(".document-actions"), toolbarHandle = document.getElementById("toolbar-drag-handle");
   toolbarHandle.addEventListener("pointerdown", function (event) {
     if (event.button !== 0) return;
