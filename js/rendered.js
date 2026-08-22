@@ -532,12 +532,14 @@
     var data = IDE.state.document; var tools = Array.isArray(data.tools) ? data.tools : [];
     var dialog = el("dialog", "tools-dialog"); dialog.id = "tools-config-dialog";
     var head = el("div", "dialog-head");
-    head.append(el("h2", "", "Configure Tools (" + tools.length + ")"), el("div", "dialog-actions", [
+    var headActions = el("div", "dialog-actions");
+    headActions.append(
       button("Clear all", "danger-button", function () {
         if (Array.isArray(data.tools)) data.tools.length = 0; IDE.state.disabledTools.length = 0; commit(); showToolsDialog();
       }),
       button("Close", "secondary", function () { dialog.close(); dialog.remove(); IDE.Rendered.render(); })
-    ]));
+    );
+    head.append(el("h2", "", "Configure Tools (" + tools.length + ")"), headActions);
     var content = el("div", "tools-dialog-content");
     var grid = el("div", "tools-grid");
     tools.forEach(function (tool, index) {
@@ -546,10 +548,12 @@
     });
     content.append(grid);
     if (!tools.length) content.append(el("div", "empty-state", "No tools defined in this request."));
-    content.append(el("div", "dialog-actions", [
+    var bottomActions = el("div", "dialog-actions");
+    bottomActions.append(
       button("+ Add tool", "secondary", function () { if (!Array.isArray(data.tools)) data.tools = []; data.tools.push({ type: "function", function: { name: "custom_tool", description: "", parameters: { type: "object", properties: {} } } }); commit(); showToolsDialog(); }),
       button("Done", "primary", function () { dialog.close(); dialog.remove(); IDE.Rendered.render(); })
-    ]));
+    );
+    content.append(bottomActions);
     dialog.append(head, content); document.body.append(dialog); dialog.showModal();
   }
   function getOptionsForField(key) {
