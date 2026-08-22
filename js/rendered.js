@@ -397,9 +397,27 @@
     }
     body.append(group);
   }
+  var draggedMessageIndex = null;
   function messageCard(message, index, messages) {
     var isToolResult = message && message.role === "tool"; var card = el("article", "message-card" + messageRoleClass(message && message.role) + (isToolResult ? " tool-result-card" : ""));
-    var head = el("div", "message-head"); head.append(el("span", "drag-index", "#" + (index + 1)));
+    var head = el("div", "message-head");
+    var handle = el("span", "message-drag-handle", ""); handle.draggable = true; handle.title = "Drag to reorder this message"; handle.setAttribute("role", "button"); handle.setAttribute("aria-label", "Move message " + (index + 1));
+    handle.addEventListener("dragstart", function (event) { draggedMessageIndex = index; card.classList.add("message-dragging"); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(index)); });
+    handle.addEventListener("dragend", function () { draggedMessageIndex = null; card.classList.remove("message-dragging"); document.querySelectorAll("#rendered-editor .message-card").forEach(function (item) { item.classList.remove("message-drop-before", "message-drop-after"); }); });
+    card.addEventListener("dragover", function (event) {
+      if (draggedMessageIndex === null || draggedMessageIndex === index) return;
+      event.preventDefault(); event.dataTransfer.dropEffect = "move";
+      var after = event.clientY > card.getBoundingClientRect().top + card.offsetHeight / 2;
+      card.classList.toggle("message-drop-before", !after); card.classList.toggle("message-drop-after", after);
+    });
+    card.addEventListener("dragleave", function () { card.classList.remove("message-drop-before", "message-drop-after"); });
+    card.addEventListener("drop", function (event) {
+      if (draggedMessageIndex === null || draggedMessageIndex === index) return;
+      event.preventDefault(); var after = event.clientY > card.getBoundingClientRect().top + card.offsetHeight / 2;
+      var moved = messages.splice(draggedMessageIndex, 1)[0]; var target = index + (after ? 1 : 0); if (draggedMessageIndex < target) target -= 1;
+      messages.splice(target, 0, moved); draggedMessageIndex = null; commit(); IDE.Rendered.render();
+    });
+    head.append(handle, el("span", "drag-index", "#" + (index + 1)));
     var role = el("input", "role-input"); role.value = message.role === undefined ? "" : String(message.role); role.setAttribute("list", "role-suggestions"); role.placeholder = "role";
     role.addEventListener("input", function () {
       message.role = role.value; card.className = "message-card" + messageRoleClass(role.value) + (role.value === "tool" ? " tool-result-card" : ""); commit();
@@ -448,91 +466,112 @@
     var card = el("article", "tool-card" + (enabled ? "" : " disabled"));
     var head = el("div", "tool-head"); var enabledLabel = el("label", "tool-enabled"); var toggle = el("input"); toggle.type = "checkbox"; toggle.checked = enabled;
     enabledLabel.append(toggle, el("span", "", "Enabled"));
+    var summary = el("span", "tool-summary", tool.function && tool.function.name ? tool.function.name : "Unnamed tool");
     toggle.addEventListener("change", function () {
-      collection.splice(index, 1);
-      if (toggle.checked) {
-        if (!Array.isArray(IDE.state.document.tools)) IDE.state.document.tools = [];
-        IDE.state.document.tools.push(tool);
-      } else IDE.state.disabledTools.push(tool);
+      var name = tool.function && tool.function.name;
+      if (!name) return;
+      var at = IDE.state.disabledTools.indexOf(name);
+      if (toggle.checked && at !== -1) IDE.state.disabledTools.splice(at, 1);
+      else if (!toggle.checked && at === -1) IDE.state.disabledTools.push(name);
       commit(); showToolsDialog();
     });
-    if (!tool || typeof tool !== "object" || Array.isArray(tool)) tool = collection[index] = { type: "function", function: { name: "", description: "", parameters: { type: "object", properties: {} } } };
-    if (!tool.function || typeof tool.function !== "object" || Array.isArray(tool.function)) tool.function = {};
-    var fn = tool.function;
-    if (!fn.parameters || typeof fn.parameters !== "object" || Array.isArray(fn.parameters)) fn.parameters = { type: "object", properties: {} };
-    if (!fn.parameters.properties || typeof fn.parameters.properties !== "object" || Array.isArray(fn.parameters.properties)) fn.parameters.properties = {};
-    if (!Array.isArray(fn.parameters.required)) fn.parameters.required = [];
-    var summary = el("strong", "tool-summary", fn.name || "Unnamed tool");
     head.append(enabledLabel, el("span", "drag-index", "#" + (index + 1)), summary, el("span", "spacer"), button("Remove", "danger-button", function () { collection.splice(index, 1); commit(); showToolsDialog(); }));
-    var body = el("div", "tool-config-body");
+    var body = el("div", "tool-config-body"); var fn = tool.function || {};
     var type = el("input"); type.value = tool.type === undefined ? "" : String(tool.type); type.addEventListener("input", function () { tool.type = type.value; commit(); });
     var name = el("input"); name.value = fn.name === undefined ? "" : String(fn.name); name.placeholder = "Tool name"; name.addEventListener("input", function () { fn.name = name.value; summary.textContent = name.value || "Unnamed tool"; commit(); });
     var description = expandingArea("tool-description", fn.description === undefined ? "" : String(fn.description)); description.placeholder = "What does this tool do?"; description.addEventListener("input", function () { fn.description = description.value; commit(); });
     body.append(toolField("Type", type), toolField("Name", name), toolField("Description", description, "full-width"));
-    var parameters = el("section", "parameters-config full-width");
-    var parameterHead = el("div", "parameters-head"); parameterHead.append(el("div", "field-label", "Parameters"), button("+ Parameter", "mini-button", function () {
-      var n = 1, key = "parameter"; while (key in fn.parameters.properties) { n += 1; key = "parameter" + n; }
-      fn.parameters.properties[key] = { type: "string", description: "" }; commit(); showToolsDialog();
-    })); parameters.append(parameterHead);
-    var propertyNames = Object.keys(fn.parameters.properties);
-    if (!propertyNames.length) parameters.append(el("p", "empty-state parameter-empty", "This tool has no parameters."));
-    propertyNames.forEach(function (propertyName) {
-      var schema = fn.parameters.properties[propertyName];
-      if (!schema || typeof schema !== "object" || Array.isArray(schema)) schema = fn.parameters.properties[propertyName] = { type: String(schema || "string"), description: "" };
-      var row = el("div", "parameter-row"); var nameWrap = el("label", "parameter-name");
-      var required = fn.parameters.required.indexOf(propertyName) !== -1;
-      var nameInput = el("input"); nameInput.value = propertyName; nameInput.placeholder = "Parameter name";
-      var star = el("span", "required-star" + (required ? " active" : ""), "*"); nameWrap.append(nameInput, star);
-      var typeInput = el("input"); typeInput.value = schema.type === undefined ? "" : String(schema.type); typeInput.placeholder = "type";
-      var descInput = el("textarea", "parameter-description"); descInput.value = schema.description === undefined ? "" : String(schema.description); descInput.placeholder = "Parameter description";
-      var requiredLabel = el("label", "parameter-required"); var requiredInput = el("input"); requiredInput.type = "checkbox"; requiredInput.checked = required; requiredLabel.append(requiredInput, el("span", "", "Required"));
-      nameInput.addEventListener("change", function () {
-        var nextName = nameInput.value.trim(); if (!nextName || nextName === propertyName || nextName in fn.parameters.properties) { nameInput.value = propertyName; return; }
-        fn.parameters.properties[nextName] = schema; delete fn.parameters.properties[propertyName];
-        var requiredIndex = fn.parameters.required.indexOf(propertyName); if (requiredIndex !== -1) fn.parameters.required[requiredIndex] = nextName;
-        commit(); showToolsDialog();
+    if (fn.parameters && fn.parameters.type === "object" && typeof fn.parameters.properties === "object") {
+      var params = el("div", "parameters-config full-width");
+      var pHead = el("div", "parameters-head");
+      pHead.append(el("span", "field-label", "PARAMETERS (OBJECT)"), button("+ Add parameter", "mini-button", function () {
+        var key = "param_" + (Object.keys(fn.parameters.properties).length + 1);
+        fn.parameters.properties[key] = { type: "string", description: "" }; commit(); showToolsDialog();
+      }));
+      params.append(pHead);
+      var propKeys = Object.keys(fn.parameters.properties);
+      if (!Array.isArray(fn.parameters.required)) fn.parameters.required = [];
+      propKeys.forEach(function (propertyName) {
+        var schema = fn.parameters.properties[propertyName] || {};
+        var row = el("div", "parameter-row");
+        var nameWrap = el("div", "parameter-name");
+        var propInput = el("input"); propInput.value = propertyName; propInput.placeholder = "property_name";
+        var star = el("span", "required-star" + (fn.parameters.required.indexOf(propertyName) !== -1 ? " active" : ""), "*");
+        nameWrap.append(propInput, star);
+        var typeInput = el("input"); typeInput.value = schema.type || "string"; typeInput.placeholder = "type";
+        var descInput = expandingArea("parameter-description", schema.description || ""); descInput.placeholder = "Parameter description";
+        var reqLabel = el("label", "parameter-required"); var requiredInput = el("input"); requiredInput.type = "checkbox"; requiredInput.checked = fn.parameters.required.indexOf(propertyName) !== -1;
+        reqLabel.append(requiredInput, el("span", "", "Required"));
+        propInput.addEventListener("change", function () {
+          var nextName = propInput.value.trim();
+          if (!nextName || nextName === propertyName) return;
+          var saved = fn.parameters.properties[propertyName]; delete fn.parameters.properties[propertyName]; fn.parameters.properties[nextName] = saved;
+          var at = fn.parameters.required.indexOf(propertyName); if (at !== -1) fn.parameters.required[at] = nextName;
+          commit(); showToolsDialog();
+        });
+        typeInput.addEventListener("input", function () { schema.type = typeInput.value; commit(); });
+        descInput.addEventListener("input", function () { schema.description = descInput.value; commit(); });
+        requiredInput.addEventListener("change", function () {
+          var at = fn.parameters.required.indexOf(propertyName);
+          if (requiredInput.checked && at === -1) fn.parameters.required.push(propertyName);
+          else if (!requiredInput.checked && at !== -1) fn.parameters.required.splice(at, 1);
+          star.classList.toggle("active", requiredInput.checked); commit();
+        });
+        row.append(nameWrap, typeInput, reqLabel, button("×", "danger-button", function () {
+          delete fn.parameters.properties[propertyName]; var at = fn.parameters.required.indexOf(propertyName); if (at !== -1) fn.parameters.required.splice(at, 1); commit(); showToolsDialog();
+        }), descInput);
+        params.append(row);
       });
-      typeInput.addEventListener("input", function () { schema.type = typeInput.value; commit(); });
-      descInput.addEventListener("input", function () { schema.description = descInput.value; commit(); });
-      requiredInput.addEventListener("change", function () {
-        var at = fn.parameters.required.indexOf(propertyName);
-        if (requiredInput.checked && at === -1) fn.parameters.required.push(propertyName);
-        if (!requiredInput.checked && at !== -1) fn.parameters.required.splice(at, 1);
-        star.classList.toggle("active", requiredInput.checked); commit();
-      });
-      row.append(nameWrap, typeInput, descInput, requiredLabel, button("Remove", "danger-button", function () {
-        delete fn.parameters.properties[propertyName]; var at = fn.parameters.required.indexOf(propertyName); if (at !== -1) fn.parameters.required.splice(at, 1); commit(); showToolsDialog();
-      })); parameters.append(row);
-    });
-    body.append(parameters); card.append(head, body); return card;
-  }
-  function renderTools(root, data) {
-    var tools = Array.isArray(data.tools) ? data.tools : null; var disabled = IDE.state.disabledTools;
-    var total = (tools ? tools.length : 0) + disabled.length;
-    var title = el("div", "section-title"); var titleActions = el("div", "section-title-actions");
-    titleActions.append(el("span", "count", (tools ? tools.length : 0) + " ENABLED · " + total + " TOTAL"));
-    if (total) titleActions.append(button("Remove all tools", "danger-button", function () {
-      if (Array.isArray(data.tools)) data.tools.length = 0; IDE.state.disabledTools.length = 0; commit(); showToolsDialog();
-    }));
-    title.append(el("h2", "", "Tools"), titleActions); root.append(title);
-    if (!tools && data.tools !== undefined) {
-      var invalidCard = el("div", "field-card invalid"); invalidCard.append(el("div", "field-label", "Tools must be an array"), el("p", "empty-state", "Fix the tools value in Raw request before configuring it here.")); root.append(invalidCard);
+      if (!propKeys.length) params.append(el("div", "empty-state parameter-empty", "No parameters configured. Click + Add parameter."));
+      body.append(params);
     }
-    else {
-      var grid = el("div", "tools-grid");
-      (tools || []).forEach(function (tool, index) { grid.append(toolCard(tool, index, tools, true)); });
-      disabled.forEach(function (tool, index) { grid.append(toolCard(tool, index, disabled, false)); });
-      root.append(grid);
-      root.append(button("+ Add tool", "secondary", function () { if (!Array.isArray(data.tools)) data.tools = []; data.tools.push({ type: "function", function: { name: "", description: "", parameters: { type: "object", properties: {} } } }); commit(); showToolsDialog(); }));
-    }
+    card.append(head, body); return card;
   }
   function showToolsDialog() {
-    var previous = document.getElementById("tools-dialog"); if (previous) previous.remove();
-    var dialog = el("dialog", "tools-dialog"); dialog.id = "tools-dialog";
-    var head = el("div", "dialog-head"); var heading = el("div"); heading.append(el("span", "eyebrow", "REQUEST TOOLS"), el("h2", "", "Configure tools"));
-    head.append(heading, button("×", "icon-button", function () { dialog.close(); }));
-    var content = el("div", "tools-dialog-content"); renderTools(content, IDE.state.document);
+    var existing = document.getElementById("tools-config-dialog"); if (existing) existing.remove();
+    var data = IDE.state.document; var tools = Array.isArray(data.tools) ? data.tools : [];
+    var dialog = el("dialog", "tools-dialog"); dialog.id = "tools-config-dialog";
+    var head = el("div", "dialog-head");
+    head.append(el("h2", "", "Configure Tools (" + tools.length + ")"), el("div", "dialog-actions", [
+      button("Clear all", "danger-button", function () {
+        if (Array.isArray(data.tools)) data.tools.length = 0; IDE.state.disabledTools.length = 0; commit(); showToolsDialog();
+      }),
+      button("Close", "secondary", function () { dialog.close(); dialog.remove(); IDE.Rendered.render(); })
+    ]));
+    var content = el("div", "tools-dialog-content");
+    var grid = el("div", "tools-grid");
+    tools.forEach(function (tool, index) {
+      var name = tool.function && tool.function.name; var enabled = IDE.state.disabledTools.indexOf(name) === -1;
+      grid.append(toolCard(tool, index, tools, enabled));
+    });
+    content.append(grid);
+    if (!tools.length) content.append(el("div", "empty-state", "No tools defined in this request."));
+    content.append(el("div", "dialog-actions", [
+      button("+ Add tool", "secondary", function () { if (!Array.isArray(data.tools)) data.tools = []; data.tools.push({ type: "function", function: { name: "custom_tool", description: "", parameters: { type: "object", properties: {} } } }); commit(); showToolsDialog(); }),
+      button("Done", "primary", function () { dialog.close(); dialog.remove(); IDE.Rendered.render(); })
+    ]));
     dialog.append(head, content); document.body.append(dialog); dialog.showModal();
+  }
+  function getOptionsForField(key) {
+    if (key === "model") {
+      var modelList = document.getElementById("model-suggestions");
+      if (modelList && modelList.children.length) {
+        return Array.prototype.map.call(modelList.children, function (opt) {
+          return { value: opt.value, label: opt.label || "" };
+        }).filter(function (opt) { return Boolean(opt.value); });
+      }
+      return [];
+    }
+    var preset = {
+      reasoning_control: ["true", "false"], stream: ["true", "false"], backend_sampling: ["true", "false"],
+      return_progress: ["true", "false"], timings_per_token: ["true", "false"], reasoning_format: ["auto", "none", "deepseek"],
+      temperature: ["0", "0.2", "0.7", "0.8", "1", "1.2"], repeat_penalty: ["1", "1.05", "1.1", "1.2"],
+      thinking_budget_tokens: ["0", "256", "512", "1024", "2048", "-1"], max_tokens: ["-1", "256", "512", "1024", "2048", "4096"]
+    };
+    if (preset[key]) {
+      return preset[key].map(function (item) { return { value: item, label: "" }; });
+    }
+    return null;
   }
   function topField(key, value) {
     var card = el("div", "field-card"); card.append(el("div", "field-label", key));
@@ -544,25 +583,81 @@
       thinking.addEventListener("change", function () { value.enable_thinking = thinking.value === "true"; commit(); });
       card.append(thinking); return card;
     }
-    var suggestions = {
-      reasoning_control: ["true", "false"], stream: ["true", "false"], backend_sampling: ["true", "false"],
-      return_progress: ["true", "false"], timings_per_token: ["true", "false"], reasoning_format: ["auto", "none", "deepseek"],
-      temperature: ["0", "0.2", "0.7", "0.8", "1", "1.2"], repeat_penalty: ["1", "1.05", "1.1", "1.2"],
-      thinking_budget_tokens: ["0", "256", "512", "1024", "2048", "-1"], max_tokens: ["-1", "256", "512", "1024", "2048", "4096"]
-    };
-    var isCompact = key === "model" || suggestions[key];
-    var input = isCompact ? el("input", "field-input") : jsonEditor(value, function (next) { IDE.state.document[key] = next; card.classList.remove("invalid"); commit(); });
-    if (!isCompact) { card.append(input); return card; }
-    input.value = IDE.Json.scalarText(value);
-    if (!isCompact) input.rows = Math.min(12, Math.max(2, input.value.split("\n").length + 1));
-    if (key === "model") input.setAttribute("list", "model-suggestions");
-    if (suggestions[key]) {
-      var listId = "suggestions-" + key; var list = document.getElementById(listId);
-      if (!list) { list = el("datalist"); list.id = listId; suggestions[key].forEach(function (item) { var option = el("option"); option.value = item; list.append(option); }); document.body.append(list); }
-      input.setAttribute("list", listId);
+    var options = getOptionsForField(key);
+    var isCompact = key === "model" || Boolean(options);
+    if (!isCompact) {
+      var editor = jsonEditor(value, function (next) { IDE.state.document[key] = next; card.classList.remove("invalid"); commit(); });
+      card.append(editor);
+      return card;
     }
-    input.addEventListener("change", function () { try { IDE.state.document[key] = IDE.Json.parseScalarText(input.value, value); card.classList.remove("invalid"); commit(); if (key === "model") IDE.Server.loadSlots(); } catch (error) { card.classList.add("invalid"); IDE.App.notice(key + ": " + error.message); } });
-    card.append(input); return card;
+    var input = el("input", "field-input");
+    input.value = IDE.Json.scalarText(value);
+    function updateVal(val) {
+      try {
+        IDE.state.document[key] = IDE.Json.parseScalarText(val, value);
+        card.classList.remove("invalid");
+        commit();
+        if (key === "model") IDE.Server.loadSlots();
+      } catch (error) {
+        card.classList.add("invalid");
+        IDE.App.notice(key + ": " + error.message);
+      }
+    }
+    input.addEventListener("change", function () { updateVal(input.value); });
+    if (options) {
+      var comboWrap = el("div", "field-combo");
+      var arrowBtn = el("button", "combo-arrow-btn", "▾");
+      arrowBtn.type = "button";
+      arrowBtn.title = "Show all options";
+      arrowBtn.setAttribute("aria-label", "Show all options for " + key);
+      var menu = el("div", "combo-menu");
+      function populateMenu() {
+        menu.replaceChildren();
+        var currentOpts = getOptionsForField(key) || [];
+        if (!currentOpts.length) {
+          menu.append(el("div", "empty-state", "No suggestions available"));
+          return;
+        }
+        currentOpts.forEach(function (optItem) {
+          var optBtn = el("button", "combo-option" + (input.value === optItem.value ? " selected" : ""));
+          optBtn.type = "button";
+          optBtn.textContent = optItem.value;
+          if (optItem.label && optItem.label !== optItem.value) {
+            optBtn.append(el("span", "combo-option-label", optItem.label));
+          }
+          optBtn.addEventListener("mousedown", function (e) {
+            e.preventDefault();
+            input.value = optItem.value;
+            updateVal(optItem.value);
+            closeMenu();
+          });
+          menu.append(optBtn);
+        });
+      }
+      function openMenu() {
+        document.querySelectorAll(".combo-menu.open").forEach(function (m) {
+          if (m !== menu) m.classList.remove("open");
+        });
+        populateMenu();
+        menu.classList.add("open");
+      }
+      function closeMenu() {
+        menu.classList.remove("open");
+      }
+      arrowBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (menu.classList.contains("open")) closeMenu();
+        else openMenu();
+      });
+      document.addEventListener("click", function (e) {
+        if (!comboWrap.contains(e.target)) closeMenu();
+      });
+      comboWrap.append(input, arrowBtn, menu);
+      card.append(comboWrap);
+      return card;
+    }
+    card.append(input);
+    return card;
   }
   function renderRequestFields(host, data) {
     host.replaceChildren();

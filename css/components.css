@@ -121,6 +121,18 @@
 .json-token.json-null { color: #ff8f85; font-style: italic; }
 .json-card-head { min-height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 7px 9px; border-bottom: 1px solid var(--line); background: #171b19; }
 .field-input { width: 100%; height: 38px; padding: 8px 10px; font: 13px ui-monospace, monospace; }
+.field-combo { position: relative; width: 100%; display: flex; align-items: stretch; }
+.field-combo .field-input { flex: 1; min-width: 0; padding-right: 28px; }
+.combo-arrow-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 26px; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; font-size: 11px; padding: 0; user-select: none; }
+.combo-arrow-btn:hover { color: var(--green); background: #202723; }
+.combo-menu { display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 220px; overflow-y: auto; z-index: 50; background: #181c1b; border: 1px solid var(--line); box-shadow: 0 10px 30px #000a; }
+.combo-menu.open { display: block; }
+.combo-option { display: block; width: 100%; border: 0; background: transparent; padding: 7px 10px; text-align: left; color: #d8e5da; font: 12px ui-monospace, monospace; cursor: pointer; }
+.combo-option:hover, .combo-option.selected { background: #26312a; color: var(--green); }
+.combo-option-label { color: var(--muted); font-size: 10px; margin-left: 8px; }
+#request-fields-host .combo-arrow-btn { width: 20px; font-size: 9px; }
+#request-fields-host .field-combo .field-input { padding-right: 22px; }
+#request-fields-host .combo-option { padding: 4px 6px; font-size: 10px; }
 .part-card { margin: 7px 0; border-left: 2px solid #53614b; padding-left: 9px; }
 .part-card.invalid { border-left-color: var(--danger); }
 .part-card.part-dragging { opacity: .45; }
@@ -128,9 +140,12 @@
 .part-card.part-drop-after { box-shadow: 0 2px 0 var(--green); }
 .part-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; color: var(--muted); font: 10px ui-monospace, monospace; }
 .part-toolbar > .danger-button { margin-left: auto; }
-.part-drag-handle { width: 12px; height: 22px; flex: 0 0 12px; cursor: grab; opacity: .55; background-image: radial-gradient(circle, #9aa49e 1.2px, transparent 1.4px); background-size: 5px 5px; background-position: 1px 1px; }
-.part-drag-handle:hover { opacity: 1; }
-.part-drag-handle:active { cursor: grabbing; }
+.message-drag-handle, .part-drag-handle { width: 12px; height: 22px; flex: 0 0 12px; cursor: grab; opacity: .55; background-image: radial-gradient(circle, #9aa49e 1.2px, transparent 1.4px); background-size: 5px 5px; background-position: 1px 1px; }
+.message-drag-handle:hover, .part-drag-handle:hover { opacity: 1; }
+.message-drag-handle:active, .part-drag-handle:active { cursor: grabbing; }
+.message-card.message-dragging { opacity: .45; }
+.message-card.message-drop-before { box-shadow: 0 -3px 0 var(--green); }
+.message-card.message-drop-after { box-shadow: 0 3px 0 var(--green); }
 .part-type-label { display: flex; align-items: center; gap: 6px; }
 .part-type-input { width: 140px; height: 28px; padding: 4px 7px; color: var(--green); font: 12px ui-monospace, monospace; }
 .file-drop-target { position: relative; border-radius: 3px; transition: background-color .12s, box-shadow .12s; }
