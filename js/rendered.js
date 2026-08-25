@@ -28,6 +28,68 @@
     requestAnimationFrame(function () { autoSize(area); });
     return area;
   }
+  function comboInput(optionsOrFn, initialValue, onSelect, onInput, inputClass, wrapClass, placeholder) {
+    var comboWrap = el("div", wrapClass || "field-combo");
+    var input = el("input", inputClass || "field-input");
+    input.value = initialValue === undefined || initialValue === null ? "" : String(initialValue);
+    if (placeholder) input.placeholder = placeholder;
+    var arrowBtn = el("button", "combo-arrow-btn", "▾");
+    arrowBtn.type = "button";
+    arrowBtn.title = "Show options";
+    arrowBtn.setAttribute("aria-label", "Show options");
+    var menu = el("div", "combo-menu");
+
+    function populateMenu() {
+      menu.replaceChildren();
+      var currentOpts = typeof optionsOrFn === "function" ? optionsOrFn() : optionsOrFn;
+      if (!currentOpts || !currentOpts.length) {
+        menu.append(el("div", "empty-state", "No suggestions available"));
+        return;
+      }
+      currentOpts.forEach(function (optItem) {
+        var optVal = typeof optItem === "string" ? optItem : optItem.value;
+        var optLabel = typeof optItem === "string" ? "" : optItem.label;
+        var optBtn = el("button", "combo-option" + (input.value === optVal ? " selected" : ""));
+        optBtn.type = "button";
+        optBtn.textContent = optVal;
+        if (optLabel && optLabel !== optVal) {
+          optBtn.append(el("span", "combo-option-label", optLabel));
+        }
+        optBtn.addEventListener("mousedown", function (e) {
+          e.preventDefault();
+          input.value = optVal;
+          if (onSelect) onSelect(optVal);
+          closeMenu();
+        });
+        menu.append(optBtn);
+      });
+    }
+    function openMenu() {
+      document.querySelectorAll(".combo-menu.open").forEach(function (m) {
+        if (m !== menu) m.classList.remove("open");
+      });
+      populateMenu();
+      menu.classList.add("open");
+    }
+    function closeMenu() {
+      menu.classList.remove("open");
+    }
+    arrowBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (menu.classList.contains("open")) closeMenu();
+      else openMenu();
+    });
+    if (onInput) {
+      input.addEventListener("input", function () {
+        onInput(input.value);
+      });
+    }
+    document.addEventListener("click", function (e) {
+      if (!comboWrap.contains(e.target)) closeMenu();
+    });
+    comboWrap.append(input, arrowBtn, menu);
+    return { wrap: comboWrap, input: input, menu: menu, open: openMenu, close: closeMenu };
+  }
   var mdInstance = null;
   function getMarkdownRenderer() {
     if (mdInstance) return mdInstance;
@@ -393,11 +455,39 @@
       messages.splice(target, 0, moved); draggedMessageIndex = null; commit(); IDE.Rendered.render();
     });
     head.append(handle, el("span", "drag-index", "#" + (index + 1)));
-    var role = el("input", "role-input"); role.value = message.role === undefined ? "" : String(message.role); role.setAttribute("list", "role-suggestions"); role.placeholder = "role";
-    role.addEventListener("input", function () {
-      message.role = role.value; card.className = "message-card" + messageRoleClass(role.value) + (role.value === "tool" ? " tool-result-card" : ""); commit();
+    var roleOptions = [
+      { value: "user", label: "user" },
+      { value: "assistant", label: "assistant" },
+      { value: "system", label: "system" },
+      { value: "tool", label: "tool" },
+      { value: "developer", label: "developer" }
+    ];
+    function applyRole(newRole, shouldRerender) {
+      var prevRole = message.role;
+      message.role = newRole;
+      card.className = "message-card" + messageRoleClass(newRole) + (newRole === "tool" ? " tool-result-card" : "");
+      commit();
+      if (shouldRerender && ((prevRole === "tool") !== (newRole === "tool"))) {
+        IDE.Rendered.render();
+      }
+    }
+    var roleCombo = comboInput(
+      roleOptions,
+      message.role === undefined ? "" : String(message.role),
+      function (selectedRole) {
+        applyRole(selectedRole, true);
+      },
+      function (typedRole) {
+        applyRole(typedRole, false);
+      },
+      "role-input",
+      "field-combo role-combo",
+      "role"
+    );
+    roleCombo.input.addEventListener("change", function () {
+      applyRole(roleCombo.input.value.trim(), true);
     });
-    head.append(role);
+    head.append(roleCombo.wrap);
     if (isToolResult) {
       var callId = el("input", "tool-result-id"); callId.value = message.tool_call_id || ""; callId.placeholder = "tool_call_id"; callId.addEventListener("input", function () { message.tool_call_id = callId.value; commit(); });
       var toolName = el("input", "tool-result-name"); toolName.value = message.name || ""; toolName.placeholder = "tool name"; toolName.addEventListener("input", function () { message.name = toolName.value; commit(); });
@@ -593,59 +683,22 @@
         IDE.App.notice(key + ": " + error.message);
       }
     }
-    input.addEventListener("change", function () { updateVal(input.value); });
     if (options) {
-      var comboWrap = el("div", "field-combo");
-      var arrowBtn = el("button", "combo-arrow-btn", "▾");
-      arrowBtn.type = "button";
-      arrowBtn.title = "Show all options";
-      arrowBtn.setAttribute("aria-label", "Show all options for " + key);
-      var menu = el("div", "combo-menu");
-      function populateMenu() {
-        menu.replaceChildren();
-        var currentOpts = getOptionsForField(key) || [];
-        if (!currentOpts.length) {
-          menu.append(el("div", "empty-state", "No suggestions available"));
-          return;
-        }
-        currentOpts.forEach(function (optItem) {
-          var optBtn = el("button", "combo-option" + (input.value === optItem.value ? " selected" : ""));
-          optBtn.type = "button";
-          optBtn.textContent = optItem.value;
-          if (optItem.label && optItem.label !== optItem.value) {
-            optBtn.append(el("span", "combo-option-label", optItem.label));
-          }
-          optBtn.addEventListener("mousedown", function (e) {
-            e.preventDefault();
-            input.value = optItem.value;
-            updateVal(optItem.value);
-            closeMenu();
-          });
-          menu.append(optBtn);
-        });
-      }
-      function openMenu() {
-        document.querySelectorAll(".combo-menu.open").forEach(function (m) {
-          if (m !== menu) m.classList.remove("open");
-        });
-        populateMenu();
-        menu.classList.add("open");
-      }
-      function closeMenu() {
-        menu.classList.remove("open");
-      }
-      arrowBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        if (menu.classList.contains("open")) closeMenu();
-        else openMenu();
-      });
-      document.addEventListener("click", function (e) {
-        if (!comboWrap.contains(e.target)) closeMenu();
-      });
-      comboWrap.append(input, arrowBtn, menu);
-      card.append(comboWrap);
+      var combo = comboInput(
+        function () { return getOptionsForField(key) || []; },
+        IDE.Json.scalarText(value),
+        function (selected) { updateVal(selected); },
+        null,
+        "field-input",
+        "field-combo"
+      );
+      combo.input.addEventListener("change", function () { updateVal(combo.input.value); });
+      card.append(combo.wrap);
       return card;
     }
+    var input = el("input", "field-input");
+    input.value = IDE.Json.scalarText(value);
+    input.addEventListener("change", function () { updateVal(input.value); });
     card.append(input);
     return card;
   }

@@ -66,12 +66,20 @@
 .role-system .message-head { background: #1a151d; }
 .role-tool .message-head { background: #1d1912; }
 .drag-index { color: #5e6762; font: 8px ui-monospace, monospace; min-width: 17px; }
-.role-input { width: min(150px, 30%); height: 24px; padding: 3px 5px; color: var(--green); font: 10px ui-monospace, monospace; }
+.role-combo { position: relative; width: min(150px, 30%); min-width: 90px; height: 24px; display: flex; align-items: stretch; }
+.role-combo .role-input { width: 100%; height: 24px; padding: 3px 20px 3px 5px; color: var(--green); font: 10px ui-monospace, monospace; }
+.role-combo .combo-arrow-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 18px; font-size: 8px; }
+.role-combo .combo-menu { min-width: 125px; font-size: 11px; z-index: 100; }
+.role-combo .combo-option { padding: 5px 8px; font-size: 10px; }
 .message-head .danger-button { padding: 3px 6px; font-size: 9px; }
 .role-assistant .role-input { color: #9dcfff; border-color: #38556b; background: #111a20; }
+.role-assistant .role-combo .combo-arrow-btn { color: #9dcfff; }
 .role-user .role-input { color: #c9f89a; border-color: #465d34; background: #151c11; }
+.role-user .role-combo .combo-arrow-btn { color: #c9f89a; }
 .role-system .role-input { color: #dfb9ff; border-color: #584366; background: #1a141e; }
+.role-system .role-combo .combo-arrow-btn { color: #dfb9ff; }
 .role-tool .role-input { color: #ffd28a; border-color: #665034; background: #1d1810; }
+.role-tool .role-combo .combo-arrow-btn { color: #ffd28a; }
 .role-other .role-input { color: #b6c0ba; }
 .message-head .spacer { flex: 1; }
 .danger-button, .mini-button { border: 1px solid var(--line); background: transparent; color: var(--muted); padding: 5px 8px; }
