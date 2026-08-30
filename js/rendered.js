@@ -345,10 +345,27 @@
       var name = el("input", "compact-call-name"); name.value = call.function.name || ""; name.placeholder = "tool name"; name.addEventListener("input", function () { call.function.name = name.value; commit(); });
       head.append(el("span", "compact-call-index", "#" + (index + 1)), id, name, button("Remove", "danger-button", function () { calls.splice(index, 1); commit(); IDE.Rendered.render(); }));
       var originalString = typeof call.function.arguments === "string"; var args;
-      try { args = originalString ? JSON.parse(call.function.arguments || "{}") : call.function.arguments; }
-      catch (_) { args = call.function.arguments; }
+      var rawText = originalString ? (call.function.arguments || "") : (call.function.arguments === undefined || call.function.arguments === null ? "" : JSON.stringify(call.function.arguments));
+      var isJsonParsed = false;
+      if (originalString) {
+        if (rawText.trim().length > 0) {
+          try {
+            args = JSON.parse(rawText);
+            isJsonParsed = Boolean(args && typeof args === "object" && !Array.isArray(args));
+          } catch (_) {
+            args = rawText;
+            isJsonParsed = false;
+          }
+        } else {
+          args = "";
+          isJsonParsed = false;
+        }
+      } else {
+        args = call.function.arguments;
+        isJsonParsed = Boolean(args && typeof args === "object" && !Array.isArray(args));
+      }
       var argsEditor = el("div", "compact-args-editor");
-      if (args && typeof args === "object" && !Array.isArray(args)) {
+      if (isJsonParsed) {
         var argKeys = Object.keys(args);
         if (!argKeys.length) argsEditor.append(el("span", "empty-arguments", "No arguments"));
         argKeys.forEach(function (argKey) {
@@ -365,7 +382,12 @@
           row.append(input); argsEditor.append(row);
         });
       } else {
-        var rawArgs = expandingArea("argument-value argument-raw", typeof args === "string" ? args : JSON.stringify(args)); rawArgs.spellcheck = false; rawArgs.addEventListener("change", function () { call.function.arguments = rawArgs.value; commit(); }); argsEditor.append(rawArgs);
+        var rawArgs = expandingArea("argument-value argument-raw", typeof args === "string" ? args : JSON.stringify(args));
+        rawArgs.placeholder = "arguments (JSON)...";
+        rawArgs.spellcheck = false;
+        rawArgs.addEventListener("change", function () { call.function.arguments = rawArgs.value; commit(); });
+        requestAnimationFrame(function () { autoSize(rawArgs); });
+        argsEditor.append(rawArgs);
       }
       card.append(head, argsEditor); group.append(card);
     });

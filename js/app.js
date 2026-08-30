@@ -135,6 +135,9 @@
             if (!streamedMessage) return;
             streamedMessage.content = partial.content;
             if (partial.reasoning) streamedMessage.reasoning_content = partial.reasoning;
+            if (partial.tool_calls && partial.tool_calls.length) {
+              streamedMessage.tool_calls = partial.tool_calls;
+            }
             scheduleStreamRender();
           });
           count += captureResponse(result, streamedMessage);

@@ -44,7 +44,15 @@
   }
   function partialText(result) {
     var message = result.choices[0] && result.choices[0].message || {};
-    return { content: message.content || "", reasoning: message.reasoning_content || message.reasoning || "" };
+    var toolCalls = null;
+    if (Array.isArray(message.tool_calls) && message.tool_calls.length) {
+      toolCalls = JSON.parse(JSON.stringify(message.tool_calls));
+    }
+    return {
+      content: message.content || "",
+      reasoning: message.reasoning_content || message.reasoning || "",
+      tool_calls: toolCalls
+    };
   }
   async function streamRequest(path, options, onProgress) {
     if (!IDE.state.settings.baseUrl) throw new Error("Set llama-server base URL in Settings first.");

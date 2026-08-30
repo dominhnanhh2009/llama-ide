@@ -66,12 +66,15 @@
 .role-system .message-head { background: #1a151d; }
 .role-tool .message-head { background: #1d1912; }
 .drag-index { color: #5e6762; font: 8px ui-monospace, monospace; min-width: 17px; }
-.role-combo { position: relative; width: min(150px, 30%); min-width: 90px; height: 24px; display: flex; align-items: stretch; }
-.role-combo .role-input { width: 100%; height: 24px; padding: 3px 20px 3px 5px; color: var(--green); font: 10px ui-monospace, monospace; }
-.role-combo .combo-arrow-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 18px; font-size: 8px; }
-.role-combo .combo-menu { min-width: 125px; font-size: 11px; z-index: 100; }
-.role-combo .combo-option { padding: 5px 8px; font-size: 10px; }
-.message-head .danger-button { padding: 3px 6px; font-size: 9px; }
+.message-card:not(.role-assistant) .drag-index { margin-right: auto; }
+.message-card:not(.role-assistant) .message-head .spacer { display: none; }
+.message-head .role-combo { position: relative; width: 78px; height: 24px; display: flex; align-items: stretch; flex: 0 0 78px; }
+.message-head .role-combo .role-input { width: 100%; height: 24px; padding: 3px 18px 3px 5px; color: var(--green); font: 10px ui-monospace, monospace; }
+.message-head .role-combo .combo-arrow-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 16px; font-size: 8px; }
+.message-head .role-combo .combo-menu { min-width: 105px; font-size: 10px; z-index: 100; }
+.message-card:not(.role-assistant) .role-combo .combo-menu { right: 0; left: auto; }
+.message-head .role-combo .combo-option { padding: 4px 6px; font-size: 10px; }
+.message-head .danger-button { padding: 3px 6px; font-size: 9px; flex-shrink: 0; }
 .role-assistant .role-input { color: #9dcfff; border-color: #38556b; background: #111a20; }
 .role-assistant .role-combo .combo-arrow-btn { color: #9dcfff; }
 .role-user .role-input { color: #c9f89a; border-color: #465d34; background: #151c11; }
@@ -285,9 +288,10 @@ dialog::backdrop { background: #050706c9; }
 .argument-raw { grid-column: 1 / -1; min-height: 42px !important; }
 .empty-arguments { grid-column: 1 / -1; padding: 3px; color: var(--muted); font: 9px ui-monospace, monospace; }
 .tool-result-card .message-head { height: 31px; gap: 4px; padding: 3px 5px; }
-.tool-result-card .role-input { width: 62px; height: 24px; font-size: 9px; }
-.tool-result-id, .tool-result-name { min-width: 80px; height: 24px; padding: 3px 5px; font: 9px ui-monospace, monospace; }
-.tool-result-id { flex: .8; color: #9dc7ff; }
-.tool-result-name { flex: 1; color: #c9e6ad; }
+.tool-result-card .message-head .role-combo { width: 68px; flex: 0 0 68px; }
+.tool-result-card .role-input { font-size: 9px; }
+.tool-result-id, .tool-result-name { min-width: 60px; max-width: 140px; height: 24px; padding: 3px 5px; font: 9px ui-monospace, monospace; }
+.tool-result-id { color: #9dc7ff; }
+.tool-result-name { color: #c9e6ad; }
 .tool-result-card .message-body { padding: 6px; }
 .tool-result-content { width: 100%; min-height: 42px; resize: none; overflow: hidden; padding: 7px 8px; font: 11px/1.4 ui-monospace, monospace; }
